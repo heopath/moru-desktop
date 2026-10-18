@@ -17,6 +17,7 @@ internal sealed record Preferences
     public bool HoverEnabled { get; init; } = true;
     public bool AlarmSound { get; init; } = true;
     public bool RepeatTimer { get; init; }
+    public bool DesktopShortcutCreated { get; init; }
     public IReadOnlyList<Reminder> Reminders { get; init; } = Array.Empty<Reminder>();
     public int? X { get; init; }
     public int? Y { get; init; }

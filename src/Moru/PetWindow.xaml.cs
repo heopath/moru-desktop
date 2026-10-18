@@ -17,6 +17,7 @@ public partial class PetWindow : Window
     private PetActivity activity;
     private readonly SystemMetrics hoverMetrics = new();
     private readonly DispatcherTimer hoverTimer;
+    private readonly DispatcherTimer posePreviewTimer;
     private bool paused;
     private long nextHoverSample;
 
@@ -26,11 +27,13 @@ public partial class PetWindow : Window
         InitializeComponent();
         hoverTimer = new(DispatcherPriority.Background, Dispatcher);
         hoverTimer.Tick += (_, _) => RefreshHover();
+        posePreviewTimer = new(DispatcherPriority.Background, Dispatcher) { Interval = TimeSpan.FromSeconds(5) };
+        posePreviewTimer.Tick += (_, _) => { posePreviewTimer.Stop(); Character.SetActivity(activity); };
         IsVisibleChanged += (_, _) => { if (!IsVisible) CloseHover(); };
         ApplyPreferences();
         animator = new PetAnimator(Character);
         animator.SetEnabled(host.Preferences.AnimationEnabled);
-        Closed += (_, _) => { animator.Dispose(); hoverTimer.Stop(); };
+        Closed += (_, _) => { animator.Dispose(); hoverTimer.Stop(); posePreviewTimer.Stop(); };
         var menu = new ContextMenu();
         AddMenu(menu, "대시보드 열기", () => host.ShowPanel());
         AddMenu(menu, "설정", () => host.ShowSettings());
@@ -55,7 +58,11 @@ public partial class PetWindow : Window
         Character.Skin = skin;
         UpdateLabel();
     }
-    internal void SetActivity(PetActivity value) { activity = value; UpdateLabel(); animator.SetState(value); }
+    internal void SetActivity(PetActivity value)
+    {
+        activity = value; UpdateLabel(); animator.SetState(value);
+        if (!posePreviewTimer.IsEnabled) Character.SetActivity(value);
+    }
     private void UpdateLabel() => NameLabel.Text = activity == PetActivity.Idle ? host.CurrentSkin.Name : AiActivity.Label(activity);
     internal void SetAnimation(bool enabled) => animator.SetEnabled(enabled);
     internal void SetPaused(bool value) { paused = value; if (value) CloseHover(); animator.SetPaused(value); }
@@ -102,7 +109,13 @@ public partial class PetWindow : Window
         }
         HoverAi.Text = host.Preferences.CodexEnabled || host.Preferences.ClaudeEnabled ? "AI · " + AiActivity.Label(host.Ai.Activity.State) : "AI 연결 꺼짐";
     }
-    internal void PreviewAnimation(PetActivity value) => animator.Preview(value);
+    internal void PreviewAnimation(PetActivity value)
+    {
+        posePreviewTimer.Stop();
+        Character.SetActivity(value);
+        animator.Preview(value);
+        posePreviewTimer.Start();
+    }
 
     private static void AddMenu(ContextMenu menu, string text, Action action)
     {
@@ -115,7 +128,7 @@ public partial class PetWindow : Window
     {
         CloseHover();
         pointerDown = null;
-        if (!dragged) { animator.Preview(PetActivity.Done); host.TogglePanel(); }
+        if (!dragged) { PreviewAnimation(PetActivity.Done); host.TogglePanel(); }
         dragged = false;
     }
     private void OnPointerDown(object sender, MouseButtonEventArgs e)

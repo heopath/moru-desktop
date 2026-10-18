@@ -10,6 +10,8 @@ public sealed class PetView : FrameworkElement
     public static readonly DependencyProperty SkinProperty = DependencyProperty.Register(nameof(Skin),
         typeof(Skin), typeof(PetView), new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
     public Skin? Skin { get => (Skin?)GetValue(SkinProperty); set => SetValue(SkinProperty, value); }
+    private PetActivity activity;
+    internal void SetActivity(PetActivity value) { if (activity == value) return; activity = value; InvalidateVisual(); }
     private static readonly Brush Shadow = Frozen("#150E2920");
     private static readonly Brush White = Frozen("#FFFDF8");
     private static readonly Brush Highlight = Frozen("#55FFFFFF");
@@ -25,7 +27,7 @@ public sealed class PetView : FrameworkElement
     {
         base.OnRender(dc);
         if (Skin is not { } skin || ActualWidth <= 0 || ActualHeight <= 0) return;
-        if (skin.Image is { } image)
+        if (skin.ImageFor(activity) is { } image)
         {
             double imageScale = Math.Min(ActualWidth / image.PixelWidth, ActualHeight / image.PixelHeight);
             double width = image.PixelWidth * imageScale;

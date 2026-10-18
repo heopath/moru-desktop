@@ -37,12 +37,29 @@ public partial class App : Application
     internal bool Exiting { get; private set; }
     internal AiMonitor Ai { get; private set; } = null!;
     internal string ClaudeNotice { get; private set; } = "Claude Code의 새 세션부터 상태를 받아요.";
+    internal bool IntegrationEnabled { get; private set; }
+    private static string Executable => Path.Combine(AppContext.BaseDirectory, "Moru.exe");
+    internal bool StartupEnabled => IntegrationEnabled && WindowsIntegration.StartupEnabled();
+    internal void ChangeStartup(bool enabled)
+    {
+        if (!IntegrationEnabled) throw new InvalidOperationException("테스트 프로필에서는 자동 실행을 바꾸지 않아요.");
+        WindowsIntegration.SetStartup(enabled, Executable);
+    }
+    internal string CreateDesktopShortcut()
+    {
+        if (!IntegrationEnabled) throw new InvalidOperationException("테스트 프로필에서는 바탕화면을 바꾸지 않아요.");
+        string path = WindowsIntegration.CreateDesktopShortcut(Executable, Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+        Preferences = Preferences with { DesktopShortcutCreated = true };
+        Save();
+        return path;
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         string directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Moru");
         int dataIndex = Array.IndexOf(e.Args, "--data-dir");
+        IntegrationEnabled = dataIndex < 0;
         if (dataIndex >= 0 && dataIndex + 1 < e.Args.Length) directory = Path.GetFullPath(e.Args[dataIndex + 1]);
         if (e.Args.Contains("--diagnostics")) DiagnosticLog.Enable(directory);
         DispatcherUnhandledException += (_, args) => DiagnosticLog.Write("ERROR " + args.Exception);
@@ -50,7 +67,7 @@ public partial class App : Application
         instance = new Mutex(true, @"Local\Moru.DesktopCompanion." + suffix, out ownsMutex);
         if (!ownsMutex)
         {
-            MessageBox.Show("모루가 이미 실행 중이에요. 작업 표시줄의 트레이 아이콘에서 열어 주세요.", "모루", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (!e.Args.Contains("--startup")) MessageBox.Show("모루가 이미 실행 중이에요. 작업 표시줄의 트레이 아이콘에서 열어 주세요.", "모루", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
         }
@@ -59,6 +76,13 @@ public partial class App : Application
         userSkins = new UserSkinStore(userSkinDirectory);
         DiagnosticLog.Write("Load preferences");
         Preferences = store.Load();
+        if (IntegrationEnabled && !Preferences.DesktopShortcutCreated)
+        {
+            try { CreateDesktopShortcut(); }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
+                or COMException or System.Security.SecurityException or NotSupportedException)
+            { DiagnosticLog.Write("Desktop shortcut unavailable: " + ex.GetType().Name); }
+        }
         Ai = new AiMonitor(Dispatcher, suffix);
         Skins = SkinCatalog.Load(Path.Combine(AppContext.BaseDirectory, "Skins"))
             .Concat(SkinCatalog.Load(userSkinDirectory, includeFallback: false, isCustom: true))
@@ -102,11 +126,26 @@ public partial class App : Application
         if (importPath is not null)
         {
             try { ImportSkin(Path.GetFullPath(importPath)); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
                 or NotSupportedException or FormatException or System.Runtime.InteropServices.COMException)
             {
                 MessageBox.Show("PNG 친구를 추가하지 못했어요. 파일 형식·크기와 저장 폴더를 확인해 주세요.", "모루");
             }
+        }
+        string? stateFolder = Option(e.Args, "--import-states");
+        if (stateFolder is not null && CurrentSkin.IsCustom)
+        {
+            try
+            {
+                foreach (var state in new[] { PetActivity.Idle, PetActivity.Working, PetActivity.Done, PetActivity.Waiting, PetActivity.Error })
+                {
+                    string path = Path.Combine(Path.GetFullPath(stateFolder), state.ToString().ToLowerInvariant() + ".png");
+                    if (File.Exists(path)) SetStateImage(state, path);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
+                or NotSupportedException or FormatException or COMException)
+            { MessageBox.Show("상태 이미지를 추가하지 못했어요. 설정에서 다시 선택해 주세요.", "모루"); }
         }
         if (motionPath is not null) Dispatcher.BeginInvoke(() => MotionExporter.Save(motionPath, pet,
             () => { if (e.Args.Contains("--exit-after-export")) ExitApp(); }));
@@ -118,7 +157,7 @@ public partial class App : Application
             {
                 capture.Stop();
                 try { PreviewExporter.Save(aiPreviewPath, aiPanel!, pet, CurrentSkin, true); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
                 { MessageBox.Show("AI 소개 화면을 저장하지 못했어요.", "모루"); }
                 if (e.Args.Contains("--exit-after-export")) ExitApp();
             };
@@ -132,7 +171,7 @@ public partial class App : Application
             {
                 capture.Stop();
                 try { PreviewExporter.Save(alarmsPreviewPath, settingsPanel!, pet, CurrentSkin, description: "실제 앱 화면 · 분 단위 타이머와 알람 설정"); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException)
                 { MessageBox.Show("알람 소개 화면을 저장하지 못했어요.", "모루"); }
                 if (e.Args.Contains("--exit-after-export")) ExitApp();
             };
@@ -148,7 +187,7 @@ public partial class App : Application
             {
                 exportTimer.Stop();
                 try { ExportPreview(Path.GetFullPath(previewPath)); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException
+                catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
                     or NotSupportedException or System.Runtime.InteropServices.COMException)
                 {
                     MessageBox.Show("소개 화면을 저장하지 못했어요. 저장 경로를 확인해 주세요.", "모루");
@@ -228,6 +267,13 @@ public partial class App : Application
         ChangeSkin(skin);
         settingsPanel?.ReloadSkins();
     }
+    internal void SetStateImage(PetActivity state, string? source)
+    {
+        var updated = userSkins.SetStateImage(CurrentSkin, state, source);
+        Skins = Skins.Select(s => s.Id == updated.Id ? updated : s).ToArray();
+        ChangeSkin(updated);
+        settingsPanel?.ReloadSkins();
+    }
     internal void ExportPreview(string path)
     {
         if (panel is null || !panel.IsVisible) return;
@@ -302,7 +348,7 @@ public partial class App : Application
             Preferences = Preferences with { ClaudeEnabled = enabled }; Ai.SetClaude(enabled); Save(); panel?.RefreshAi();
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             ClaudeNotice = ex is NotSupportedException ? ex.Message : "연결 설정을 저장하지 못했어요. Claude 설정 파일 형식과 권한을 확인해 주세요.";
             panel?.RefreshAi(); aiPanel?.Refresh(); return false;

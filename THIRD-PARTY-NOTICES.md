@@ -17,3 +17,5 @@ Windows 포터블 배포본에는 Microsoft .NET / Windows Desktop Runtime이 �
 치이카와 스킨 원본 PNG·설정 파일은 공개 저장소나 기본 제공 스킨에 포함하지 않습니다.
 `docs/images/moru-chiikawa-demo.png`와 `docs/images/moru-timers.png`는 사용자가 적용한 치이카와 PNG를 보여 주는 프로그램 사용 예시입니다. 이 스크린샷의 치이카와 캐릭터 부분은 모루의 MIT 라이선스 적용 대상이 아니며 원권리자에게 권리가 있습니다. 해당 이미지에 별도의 이용·재배포 허가를 부여하지 않습니다.
 모루는 해당 캐릭터의 공식 소프트웨어나 제휴 상품이 아닙니다.
+
+`docs/images/moru-usagi-motion.gif`와 `docs/images/moru-state-skins.jpg`는 AI로 제작한 우사기(치이카와의 등장인물) 개인 스킨을 적용한 실제 앱의 기능 예시입니다. 이 예시의 우사기 캐릭터 부분도 MIT 적용 대상에서 제외하며 원작 캐릭터의 권리는 원권리자에게 있습니다. 원본 상태 PNG는 저장소와 배포 ZIP에 기본 스킨으로 포함하지 않습니다.
