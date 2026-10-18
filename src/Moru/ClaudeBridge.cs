@@ -72,6 +72,7 @@ internal static class ClaudeBridge
     }
     public static string Configure(string path, string executable, string pipe, bool enable)
     {
+        if (enable && !HasGitBash()) throw new NotSupportedException("현재 Claude 연결에는 Git for Windows의 Git Bash가 필요해요. 설치 후 다시 연결해 주세요.");
         if (File.Exists(path) && new FileInfo(path).Length > 1024 * 1024) throw new IOException("설정 파일이 너무 커요.");
         string original = File.Exists(path) ? File.ReadAllText(path) : "{}";
         var root = JsonNode.Parse(original) as JsonObject ?? throw new JsonException();
@@ -101,7 +102,7 @@ internal static class ClaudeBridge
                 if (hooks[name] is null) hooks[name] = new JsonArray();
                 if (hooks[name] is not JsonArray groups) throw new JsonException();
                 groups.Add(new JsonObject { ["hooks"] = new JsonArray(new JsonObject
-                { ["type"] = "command", ["command"] = $"\"{exe}\" {HookFlag} {pipe}", ["timeout"] = 2 }) });
+                { ["type"] = "command", ["shell"] = "bash", ["command"] = $"\"{exe}\" {HookFlag} {pipe}", ["timeout"] = 2 }) });
             }
             if (root["statusLine"] is null)
             {
@@ -122,5 +123,22 @@ internal static class ClaudeBridge
         return !enable ? "모루 연결을 해제했어요. Claude Code를 다시 열어 주세요."
             : statusInstalled ? "연결 설정 완료 · 새 Claude Code 세션부터 적용돼요."
             : "작업 훅 연결 완료 · 기존 상태줄을 유지해서 사용량 연결은 생략했어요.";
+    }
+    internal static bool HasGitBash()
+    {
+        string? configured = Environment.GetEnvironmentVariable("CLAUDE_CODE_GIT_BASH_PATH");
+        if (!string.IsNullOrEmpty(configured)) return File.Exists(configured);
+        foreach (string root in new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) })
+            if (File.Exists(Path.Combine(root, "Git", "bin", "bash.exe")) || File.Exists(Path.Combine(root, "Programs", "Git", "bin", "bash.exe"))) return true;
+        foreach (string dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+        {
+            try
+            {
+                if (File.Exists(Path.Combine(dir, "git.exe")) && File.Exists(Path.GetFullPath(Path.Combine(dir, "..", "bin", "bash.exe")))) return true;
+            }
+            catch (ArgumentException) { }
+        }
+        return false;
     }
 }

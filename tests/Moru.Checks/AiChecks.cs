@@ -49,6 +49,16 @@ internal static class AiChecks
         string dir = Path.Combine(scratch, "claude-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         string config = Path.Combine(dir, "settings.json");
+        string? previousBash = Environment.GetEnvironmentVariable("CLAUDE_CODE_GIT_BASH_PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("CLAUDE_CODE_GIT_BASH_PATH", Path.Combine(dir, "missing-bash.exe"));
+            bool rejected = false;
+            try { ClaudeBridge.Configure(config, "C:/Moru Test/Moru.exe", "moru-test", true); }
+            catch (NotSupportedException) { rejected = true; }
+            check("Missing Git Bash leaves Claude settings untouched", rejected && !File.Exists(config));
+        }
+        finally { Environment.SetEnvironmentVariable("CLAUDE_CODE_GIT_BASH_PATH", previousBash); }
         File.WriteAllText(config, "{\"env\":{\"CUSTOM\":\"keep\"},\"statusLine\":{\"command\":\"existing\"},\"hooks\":{\"Stop\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"existing-hook\"}]}]}}");
         ClaudeBridge.Configure(config, "C:/Moru Test/Moru.exe", "moru-test", true);
         var installed = JsonNode.Parse(File.ReadAllText(config))!;

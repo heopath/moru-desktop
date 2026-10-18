@@ -1,11 +1,11 @@
 {
-  "Label": "v0.3-final-chiikawa-animation-live-codex-panel-closed",
-  "StartedAt": "2026-10-18T15:52:56.0455077+09:00",
-  "Seconds": 30.52,
+  "Label": "v0.3-release-chiikawa-animation-codex-panel-closed",
+  "StartedAt": "2026-10-18T16:01:55.7221021+09:00",
+  "Seconds": 30.75,
   "LogicalProcessors": 24,
-  "CpuMilliseconds": 2062.5,
-  "CpuPercentOfMachine": 0.2815,
-  "AverageWorkingSetMiB": 189.97,
-  "PeakWorkingSetMiB": 199.0,
-  "AveragePrivateCommitMiB": 129.64
+  "CpuMilliseconds": 1484.375,
+  "CpuPercentOfMachine": 0.2012,
+  "AverageWorkingSetMiB": 190.06,
+  "PeakWorkingSetMiB": 195.33,
+  "AveragePrivateCommitMiB": 134.48
 }

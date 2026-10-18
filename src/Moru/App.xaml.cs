@@ -231,9 +231,9 @@ public partial class App : Application
             Preferences = Preferences with { ClaudeEnabled = enabled }; Ai.SetClaude(enabled); Save(); panel?.RefreshAi();
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException or InvalidOperationException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
-            ClaudeNotice = "연결 설정을 저장하지 못했어요. Claude 설정 파일 형식과 권한을 확인해 주세요.";
+            ClaudeNotice = ex is NotSupportedException ? ex.Message : "연결 설정을 저장하지 못했어요. Claude 설정 파일 형식과 권한을 확인해 주세요.";
             panel?.RefreshAi(); aiPanel?.Refresh(); return false;
         }
     }
