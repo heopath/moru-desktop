@@ -1,49 +1,38 @@
 using System;
 using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace Moru;
 
 public partial class AiWindow : Window
 {
     private readonly App host;
-    private bool ready;
     internal AiWindow(App app)
     {
         host = app; InitializeComponent();
-        MaxHeight = Math.Max(360, SystemParameters.WorkArea.Height - 32);
-        CodexToggle.IsChecked = app.Preferences.CodexEnabled;
-        ClaudeToggle.IsChecked = app.Preferences.ClaudeEnabled;
-        ready = true; Refresh();
-        Closing += (_, e) => { if (!host.Exiting) { e.Cancel = true; Hide(); } };
+        MaxHeight = Math.Max(360, SystemParameters.WorkArea.Height - 24);
+        Height = Math.Min(740, MaxHeight);
+        Closing += (_, e) => { if (!host.Exiting) { e.Cancel = true; Hide(); host.ShowPanel(); } };
+        Refresh();
     }
     internal void Refresh()
     {
-        CodexConnection.Text = host.Ai.CodexStatus;
-        ClaudeConnection.Text = host.Preferences.ClaudeEnabled ? host.ClaudeNotice : "연결 꺼짐 · 설정을 백업한 뒤 훅과 상태줄을 추가해요";
-        CodexState.Text = host.Ai.Activity.Summary("Codex");
-        ClaudeState.Text = host.Ai.Activity.Summary("Claude Code");
-        CodexUsage.Text = host.Ai.Activity.Usage("Codex");
-        ClaudeUsage.Text = host.Ai.Activity.Usage("Claude Code");
-        RecentTasks.Text = string.Join("\n", host.Ai.Activity.Sessions.Take(6).Select(s =>
-            $"{s.Provider} · {(s.Child ? "보조" : "메인")} #{ShortId(s.Id)} · {AiActivity.Label(s.State)} · {s.At.ToLocalTime():HH:mm}"));
-        if (RecentTasks.Text.Length == 0) RecentTasks.Text = "연결한 도구에서 작업을 시작하면 여기에 나타나요.";
-    }
-    private static string ShortId(string id) => id.Length > 6 ? id[^6..] : id;
-    private void OnCodex(object sender, RoutedEventArgs e) { if (ready) host.ChangeCodex(CodexToggle.IsChecked == true); }
-    private void OnClaude(object sender, RoutedEventArgs e)
-    {
-        if (!ready) return;
-        bool enabled = ClaudeToggle.IsChecked == true;
-        if (!host.ChangeClaude(enabled))
+        CodexConnection.Text = host.Preferences.CodexEnabled ? "연결 켜짐" : "연결 꺼짐";
+        ClaudeConnection.Text = host.Preferences.ClaudeEnabled ? "연결 켜짐" : "연결 꺼짐";
+        CodexState.Text = host.Preferences.CodexEnabled ? host.Ai.Activity.Summary("Codex") : "연결을 기다려요";
+        ClaudeState.Text = host.Preferences.ClaudeEnabled ? host.Ai.Activity.Summary("Claude Code") : "연결을 기다려요";
+        CodexUsage.Text = host.Preferences.CodexEnabled ? host.Ai.Activity.Usage("Codex") : "설정에서 Codex를 켜 주세요.";
+        ClaudeUsage.Text = host.Preferences.ClaudeEnabled ? host.Ai.Activity.Usage("Claude Code") : "설정에서 Claude Code를 켜 주세요.";
+        var tasks = host.Ai.Activity.Sessions.Take(6).Select(s => new
         {
-            ready = false; ClaudeToggle.IsChecked = host.Preferences.ClaudeEnabled; ready = true;
-            MessageBox.Show(this, host.ClaudeNotice, "Claude Code 연결");
-        }
+            Title = $"{s.Provider} · {(s.Child ? "보조" : "메인")} · {AiActivity.Label(s.State)}",
+            Detail = $"#{(s.Id.Length > 6 ? s.Id[^6..] : s.Id)} · {s.At.ToLocalTime():HH:mm}"
+        }).ToArray();
+        RecentTasks.ItemsSource = tasks;
+        EmptyTasks.Visibility = tasks.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
-    private void OnPreview(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button { Tag: string name } && Enum.TryParse<PetActivity>(name, out var state)) host.PreviewAnimation(state);
-    }
+    private void OnSettings(object sender, RoutedEventArgs e) => host.ShowSettings(2);
+    private void OnHide(object sender, RoutedEventArgs e) { Hide(); host.ShowPanel(); }
+    private void OnKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) { Hide(); host.ShowPanel(); } }
 }

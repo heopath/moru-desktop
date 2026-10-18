@@ -1,0 +1,8 @@
+<Window Foreground="{DynamicResource Ink}" x:Class="Moru.AlarmWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="모루 · 알람" Width="430" Height="340" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False" ShowActivated="False" Topmost="True">
+ <Border Style="{StaticResource Card}" Background="{DynamicResource Canvas}" Padding="24"><DockPanel>
+  <TextBlock DockPanel.Dock="Top" Text="잠깐, 알람이 왔어요" FontWeight="SemiBold" FontSize="{DynamicResource TitleSize}" Margin="0,0,0,18"/>
+  <UniformGrid DockPanel.Dock="Bottom" Columns="2" Margin="0,18,0,0"><Button Content="5분 뒤 다시" Click="OnSnooze" Margin="0,0,8,0"/><Button Content="확인" Click="OnDismiss" Background="{DynamicResource Soft}"/></UniformGrid>
+  <ScrollViewer VerticalScrollBarVisibility="Auto"><ItemsControl x:Name="Items"><ItemsControl.ItemTemplate><DataTemplate><StackPanel Margin="0,0,0,12"><TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="{Binding When}" Style="{StaticResource Caption}" Margin="0,6,0,0"/></StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+ </DockPanel></Border>
+</Window>

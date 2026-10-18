@@ -86,6 +86,7 @@ internal static class Program
         metrics.Reset();
         Check("Reopening starts a new CPU interval", metrics.Read().CpuPercent is null);
         AiChecks.Run(scratch, Check);
+        UtilityChecks.Run(scratch, Check);
         Console.WriteLine($"PASS: {passed} checks");
         return 0;
     }

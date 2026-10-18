@@ -2,6 +2,8 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
+using System.Globalization;
 
 namespace Moru;
 
@@ -12,16 +14,25 @@ public partial class PetWindow : Window
     private bool dragged;
     private readonly PetAnimator animator;
     private PetActivity activity;
+    private readonly SystemMetrics hoverMetrics = new();
+    private readonly DispatcherTimer hoverTimer;
+    private bool paused;
 
     internal PetWindow(App app)
     {
         host = app;
         InitializeComponent();
+        hoverTimer = new(DispatcherPriority.Background, Dispatcher);
+        hoverTimer.Tick += (_, _) => RefreshHover();
+        IsVisibleChanged += (_, _) => { if (!IsVisible) CloseHover(); };
+        ApplyPreferences();
         animator = new PetAnimator(Character);
         animator.SetEnabled(host.Preferences.AnimationEnabled);
-        Closed += (_, _) => animator.Dispose();
+        Closed += (_, _) => { animator.Dispose(); hoverTimer.Stop(); };
         var menu = new ContextMenu();
-        AddMenu(menu, "내 PC 상태 / 스킨", () => host.ShowPanel());
+        AddMenu(menu, "대시보드 열기", () => host.ShowPanel());
+        AddMenu(menu, "설정", () => host.ShowSettings());
+        AddMenu(menu, "AI 작업", () => host.ShowAi());
         AddMenu(menu, "캐릭터 숨기기", () => host.TogglePet());
         AddMenu(menu, "위치 초기화", () => host.ResetPosition());
         menu.Items.Add(new Separator());
@@ -43,9 +54,33 @@ public partial class PetWindow : Window
         UpdateLabel();
     }
     internal void SetActivity(PetActivity value) { activity = value; UpdateLabel(); animator.SetState(value); }
-    private void UpdateLabel() => NameLabel.Text = activity == PetActivity.Idle ? $"{host.CurrentSkin.Name} · 클릭해 봐요" : AiActivity.Label(activity);
+    private void UpdateLabel() => NameLabel.Text = activity == PetActivity.Idle ? host.CurrentSkin.Name : AiActivity.Label(activity);
     internal void SetAnimation(bool enabled) => animator.SetEnabled(enabled);
-    internal void SetPaused(bool value) => animator.SetPaused(value);
+    internal void SetPaused(bool value) { paused = value; if (value) CloseHover(); animator.SetPaused(value); }
+    internal void ApplyPreferences()
+    {
+        ToolTipService.SetIsEnabled(PetButton, host.Preferences.HoverEnabled);
+        hoverTimer.Interval = TimeSpan.FromSeconds(host.Preferences.RefreshSeconds);
+        if (!host.Preferences.HoverEnabled) CloseHover();
+    }
+    internal void CloseHover() { HoverTip.IsOpen = false; hoverTimer.Stop(); hoverMetrics.Reset(); }
+    private void OnHoverOpened(object sender, RoutedEventArgs e)
+    {
+        if (paused || !host.Preferences.HoverEnabled || !IsVisible) { CloseHover(); return; }
+        hoverMetrics.Reset(); RefreshHover(); hoverTimer.Start();
+    }
+    private void OnHoverClosed(object sender, RoutedEventArgs e) { hoverTimer.Stop(); hoverMetrics.Reset(); }
+    private void RefreshHover()
+    {
+        if (!HoverTip.IsOpen || paused) { hoverTimer.Stop(); return; }
+        var sample = hoverMetrics.Read();
+        HoverTime.Text = DateTime.Now.ToString("HH:mm");
+        HoverDate.Text = DateTime.Now.ToString("M월 d일 dddd", CultureInfo.GetCultureInfo("ko-KR"));
+        string cpu = sample.CpuPercent is double value ? $"{value:0}%" : "측정 중";
+        string ram = sample.TotalMemory > 0 ? $"{sample.MemoryPercent:0}%" : "—";
+        HoverMetrics.Text = $"CPU {cpu}  ·  메모리 {ram}";
+        HoverAi.Text = host.Preferences.CodexEnabled || host.Preferences.ClaudeEnabled ? "AI · " + AiActivity.Label(host.Ai.Activity.State) : "AI 연결 꺼짐";
+    }
     internal void PreviewAnimation(PetActivity value) => animator.Preview(value);
 
     private static void AddMenu(ContextMenu menu, string text, Action action)
@@ -57,6 +92,7 @@ public partial class PetWindow : Window
 
     private void OnPetClick(object sender, RoutedEventArgs e)
     {
+        CloseHover();
         pointerDown = null;
         if (!dragged) { animator.Preview(PetActivity.Done); host.TogglePanel(); }
         dragged = false;
@@ -74,6 +110,7 @@ public partial class PetWindow : Window
             Math.Abs(current.Y - start.Y) < SystemParameters.MinimumVerticalDragDistance) return;
         pointerDown = null;
         dragged = true;
+        CloseHover();
         Mouse.Capture(null);
         host.HidePanel();
         animator.SetPaused(true);

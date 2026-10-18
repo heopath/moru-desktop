@@ -1,0 +1,24 @@
+[
+  {
+    "Label": "v0.4-png-animation-codex-character-only",
+    "StartedAt": "2026-10-18T16:57:59.0681263+09:00",
+    "Seconds": 30.56,
+    "LogicalProcessors": 24,
+    "CpuMilliseconds": 1781.25,
+    "CpuPercentOfMachine": 0.2429,
+    "AverageWorkingSetMiB": 188.11,
+    "PeakWorkingSetMiB": 195.09,
+    "AveragePrivateCommitMiB": 132.19
+  },
+  {
+    "Label": "v0.4-png-animation-codex-dashboard-2s",
+    "StartedAt": "2026-10-18T16:59:13.466447+09:00",
+    "Seconds": 30.68,
+    "LogicalProcessors": 24,
+    "CpuMilliseconds": 8859.375,
+    "CpuPercentOfMachine": 1.2031,
+    "AverageWorkingSetMiB": 199.86,
+    "PeakWorkingSetMiB": 207.78,
+    "AveragePrivateCommitMiB": 141.17
+  }
+]

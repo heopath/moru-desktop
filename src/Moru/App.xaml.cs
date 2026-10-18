@@ -22,6 +22,9 @@ public partial class App : Application
     private PetWindow pet = null!;
     private StatusWindow? panel;
     private AiWindow? aiPanel;
+    private SettingsWindow? settingsPanel;
+    private AlarmWindow? alarmPanel;
+    private ReminderService? reminders;
     private Forms.NotifyIcon? tray;
     private Icon? trayIcon;
     private Forms.ToolStripMenuItem? visibilityItem;
@@ -60,10 +63,9 @@ public partial class App : Application
             .Concat(SkinCatalog.Load(userSkinDirectory, includeFallback: false, isCustom: true))
             .GroupBy(s => s.Id).Select(group => group.First()).Take(12).ToArray();
         CurrentSkin = Skins.FirstOrDefault(s => s.Id == Preferences.SkinId) ?? Skins[0];
-        Resources["Accent"] = CurrentSkin.Accent;
-        Resources["Soft"] = CurrentSkin.Soft;
+        Theme.Apply(this, Preferences, CurrentSkin);
         DiagnosticLog.Write("Create pet window");
-        pet = new PetWindow(this) { Topmost = Preferences.AlwaysOnTop };
+        pet = new PetWindow(this) { Topmost = Preferences.AlwaysOnTop, ShowInTaskbar = e.Args.Contains("--inspect-pet") };
         MainWindow = pet;
         pet.ApplySkin(CurrentSkin);
         DiagnosticLog.Write("Create tray");
@@ -79,13 +81,16 @@ public partial class App : Application
         pet.ContentRendered += (_, _) => DiagnosticLog.Window("Pet rendered", pet);
         DiagnosticLog.Write("Show pet");
         pet.Show();
-        Ai.Changed += () => { pet.SetActivity(Ai.Activity.State); panel?.RefreshAi(); aiPanel?.Refresh(); };
+        Ai.Changed += () => { pet.SetActivity(Ai.Activity.State); panel?.RefreshAi(); aiPanel?.Refresh(); settingsPanel?.RefreshConnections(); };
         Ai.TaskCompleted += () => pet.PreviewAnimation(PetActivity.Done);
         Ai.SetCodex(Preferences.CodexEnabled);
         Ai.SetClaude(Preferences.ClaudeEnabled);
+        reminders = new ReminderService(Dispatcher, () => Preferences.Reminders, DeliverReminders);
+        reminders.Schedule();
         if (e.Args.Contains("--enable-codex")) ChangeCodex(true);
         if (e.Args.Contains("--enable-claude")) ChangeClaude(true);
         if (e.Args.Contains("--show-ai")) Dispatcher.BeginInvoke(ShowAi);
+        if (e.Args.Contains("--show-settings")) Dispatcher.BeginInvoke(() => ShowSettings());
         DiagnosticLog.Window("Pet shown", pet);
         string? importPath = Option(e.Args, "--import-png");
         string? previewPath = Option(e.Args, "--export-preview");
@@ -147,10 +152,10 @@ public partial class App : Application
     {
         DiagnosticLog.Write("Show panel requested");
         if (!pet.IsVisible) TogglePet();
+        aiPanel?.Hide(); settingsPanel?.Hide(); pet.CloseHover();
         panel ??= new StatusWindow(this) { Owner = pet, Icon = pet.Icon, Topmost = Preferences.AlwaysOnTop };
         panel.Show();
         WindowPlacement.Beside(panel, pet);
-        panel.SelectCurrentSkin();
         panel.SetPaused(sessionLocked || suspended);
         panel.Activate();
         DiagnosticLog.Window("Panel shown", panel);
@@ -158,14 +163,21 @@ public partial class App : Application
     internal void HidePanel() => panel?.Hide();
     internal void ShowAi()
     {
-        aiPanel ??= new AiWindow(this) { Owner = pet, Icon = pet.Icon };
+        HidePanel(); settingsPanel?.Hide(); pet.CloseHover();
+        aiPanel ??= new AiWindow(this) { Owner = pet, Icon = pet.Icon, Topmost = Preferences.AlwaysOnTop };
         aiPanel.Show(); WindowPlacement.Beside(aiPanel, pet); aiPanel.Refresh(); aiPanel.Activate();
+    }
+    internal void ShowSettings(int tab = 0)
+    {
+        HidePanel(); aiPanel?.Hide(); pet.CloseHover();
+        settingsPanel ??= new SettingsWindow(this) { Owner = pet, Icon = pet.Icon, Topmost = Preferences.AlwaysOnTop };
+        settingsPanel.SelectTab(tab); settingsPanel.Show(); WindowPlacement.Beside(settingsPanel, pet); settingsPanel.Activate();
     }
     internal void PositionPanel() { if (panel is not null) WindowPlacement.Beside(panel, pet); }
     internal void TogglePanel() { if (panel?.IsVisible == true) HidePanel(); else ShowPanel(); }
     internal void TogglePet()
     {
-        if (pet.IsVisible) { HidePanel(); pet.Hide(); }
+        if (pet.IsVisible) { HidePanel(); aiPanel?.Hide(); settingsPanel?.Hide(); pet.CloseHover(); pet.Hide(); }
         else { pet.Show(); WindowPlacement.Clamp(pet); }
         if (visibilityItem is not null) visibilityItem.Text = pet.IsVisible ? "캐릭터 숨기기" : "캐릭터 보이기";
     }
@@ -186,8 +198,7 @@ public partial class App : Application
     {
         CurrentSkin = skin;
         Preferences = Preferences with { SkinId = skin.Id };
-        Resources["Accent"] = skin.Accent;
-        Resources["Soft"] = skin.Soft;
+        Theme.Apply(this, Preferences, skin);
         pet.ApplySkin(skin);
         DiagnosticLog.Write("Skin selected " + skin.Id);
         Save();
@@ -198,7 +209,7 @@ public partial class App : Application
         var skin = userSkins.Import(path);
         Skins = Skins.Append(skin).ToArray();
         ChangeSkin(skin);
-        panel?.ReloadSkins();
+        settingsPanel?.ReloadSkins();
     }
     internal void ExportPreview(string path)
     {
@@ -210,9 +221,38 @@ public partial class App : Application
         Preferences = Preferences with { AlwaysOnTop = topmost };
         pet.Topmost = topmost;
         if (panel is not null) panel.Topmost = topmost;
+        if (aiPanel is not null) aiPanel.Topmost = topmost;
+        if (settingsPanel is not null) settingsPanel.Topmost = topmost;
         Save();
     }
-    internal void ChangeInterval(int seconds) { Preferences = Preferences with { RefreshSeconds = seconds }; Save(); }
+    internal void ChangeInterval(int seconds) { Preferences = Preferences with { RefreshSeconds = seconds }; panel?.ApplyPreferences(); pet.ApplyPreferences(); Save(); }
+    internal void ChangeAppearance(bool dark, int textSize)
+    {
+        Preferences = (Preferences with { DarkMode = dark, TextSize = textSize }).Normalize();
+        Theme.Apply(this, Preferences, CurrentSkin); panel?.ApplyPreferences(); Save();
+    }
+    internal void ChangeHover(bool enabled) { Preferences = Preferences with { HoverEnabled = enabled }; pet.ApplyPreferences(); Save(); }
+    internal void ChangeAlarmSound(bool enabled) { Preferences = Preferences with { AlarmSound = enabled }; Save(); }
+    internal bool AddReminder(Reminder reminder)
+    {
+        if (Preferences.Reminders.Count >= 8) return false;
+        Preferences = (Preferences with { Reminders = Preferences.Reminders.Append(reminder).ToArray() }).Normalize();
+        Save(); reminders?.Schedule(); settingsPanel?.RefreshAlarms(); panel?.RefreshClock(); return true;
+    }
+    internal void RemoveReminder(Guid id)
+    {
+        Preferences = Preferences with { Reminders = Preferences.Reminders.Where(r => r.Id != id).ToArray() };
+        Save(); reminders?.Schedule(); settingsPanel?.RefreshAlarms(); panel?.RefreshClock();
+    }
+    private void DeliverReminders(Reminder[] due)
+    {
+        var ids = due.Select(r => r.Id).ToHashSet();
+        Preferences = Preferences with { Reminders = Preferences.Reminders.Where(r => !ids.Contains(r.Id)).ToArray() };
+        Save(); settingsPanel?.RefreshAlarms(); panel?.RefreshClock();
+        alarmPanel ??= new AlarmWindow(this) { Owner = pet, Icon = pet.Icon };
+        alarmPanel.Deliver(due); WindowPlacement.Beside(alarmPanel, pet);
+        if (Preferences.AlarmSound) System.Media.SystemSounds.Asterisk.Play();
+    }
     internal void ChangeAnimation(bool enabled)
     {
         Preferences = Preferences with { AnimationEnabled = enabled }; pet.SetAnimation(enabled); Save();
@@ -220,7 +260,7 @@ public partial class App : Application
     internal void PreviewAnimation(PetActivity value) => pet.PreviewAnimation(value);
     internal void ChangeCodex(bool enabled)
     {
-        Preferences = Preferences with { CodexEnabled = enabled }; Ai.SetCodex(enabled); Save();
+        Preferences = Preferences with { CodexEnabled = enabled }; Ai.SetCodex(enabled); panel?.RefreshAi(); Save();
     }
     internal bool ChangeClaude(bool enabled)
     {
@@ -241,13 +281,16 @@ public partial class App : Application
     {
         bool saved = store.Save(Preferences);
         panel?.ShowSaveResult(saved);
+        settingsPanel?.ShowSaveResult(saved);
     }
 
     private void CreateTray()
     {
         trayIcon = MakeIcon();
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add("내 PC 상태 / 스킨", null, (_, _) => Dispatcher.Invoke(ShowPanel));
+        menu.Items.Add("대시보드 열기", null, (_, _) => Dispatcher.Invoke(ShowPanel));
+        menu.Items.Add("설정", null, (_, _) => Dispatcher.Invoke(() => ShowSettings()));
+        menu.Items.Add("AI 작업", null, (_, _) => Dispatcher.Invoke(ShowAi));
         visibilityItem = new Forms.ToolStripMenuItem("캐릭터 숨기기", null, (_, _) => Dispatcher.Invoke(TogglePet));
         menu.Items.Add(visibilityItem);
         menu.Items.Add("위치 초기화", null, (_, _) => Dispatcher.Invoke(ResetPosition));
@@ -284,12 +327,16 @@ public partial class App : Application
     {
         HidePanel();
         if (pet.IsVisible) WindowPlacement.Clamp(pet);
+        if (aiPanel?.IsVisible == true) WindowPlacement.Clamp(aiPanel);
+        if (settingsPanel?.IsVisible == true) WindowPlacement.Clamp(settingsPanel);
+        if (alarmPanel?.IsVisible == true) WindowPlacement.Clamp(alarmPanel);
     });
     private void OnPowerChanged(object sender, PowerModeChangedEventArgs e) => Dispatcher.BeginInvoke(() =>
     {
         suspended = e.Mode == PowerModes.Suspend || (suspended && e.Mode != PowerModes.Resume);
         panel?.SetPaused(sessionLocked || suspended);
         pet.SetPaused(sessionLocked || suspended);
+        if (sessionLocked || suspended) reminders?.Pause(); else reminders?.Check();
     });
     private void OnSessionChanged(object sender, SessionSwitchEventArgs e) => Dispatcher.BeginInvoke(() =>
     {
@@ -297,6 +344,7 @@ public partial class App : Application
         if (e.Reason == SessionSwitchReason.SessionUnlock) sessionLocked = false;
         panel?.SetPaused(sessionLocked || suspended);
         pet.SetPaused(sessionLocked || suspended);
+        if (sessionLocked || suspended) reminders?.Pause(); else reminders?.Check();
     });
     internal void ExitApp()
     {
@@ -309,6 +357,7 @@ public partial class App : Application
     {
         Exiting = true;
         Ai?.Dispose();
+        reminders?.Dispose();
         SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
         SystemEvents.PowerModeChanged -= OnPowerChanged;
         SystemEvents.SessionSwitch -= OnSessionChanged;

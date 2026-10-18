@@ -16,23 +16,26 @@ internal static class PreviewExporter
         pet.UpdateLayout();
         var panelImage = Capture(panel);
         var petImage = Capture(pet);
+        double width = panel.ActualWidth + 440;
+        double side = panel.ActualWidth + 65;
+        var ink = (Brush)Application.Current.Resources["Ink"];
+        var accent = (Brush)Application.Current.Resources["Accent"];
         double height = Math.Max(820, panel.ActualHeight + 130);
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
         {
-            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(239, 245, 240)), null, new Rect(0, 0, 820, height));
-            DrawText(dc, "MORU", 32, 26, 25, skin.Accent);
-            DrawText(dc, "내 PC 곁의 작은 친구", 139, 32, 17, skin.Outline);
+            dc.DrawRectangle((Brush)Application.Current.Resources["Canvas"], null, new Rect(0, 0, width, height));
+            DrawText(dc, "MORU", 32, 26, 25, accent);
+            DrawText(dc, "내 PC 곁의 작은 친구", 139, 32, 17, ink);
             dc.DrawImage(panelImage, new Rect(32, 88, panel.ActualWidth, panel.ActualHeight));
-            dc.DrawImage(petImage, new Rect(490, 236, pet.ActualWidth * 1.45, pet.ActualHeight * 1.45));
-            DrawText(dc, skin.Name + " 스킨 적용", 468, 498, 20, skin.Outline);
-            DrawText(dc, "캐릭터 클릭 → CPU·메모리 확인", 446, 542, 15, skin.Outline);
-            DrawText(dc, "PNG 한 장으로 나만의 친구 추가", 446, 571, 15, skin.Outline);
-            DrawText(dc, "애니메이션 · Codex / Claude Code 연결", 446, 601, 14, skin.Outline);
-            DrawText(dc, "Windows · C# / WPF · v0.3.0", 446, 640, 13, skin.Accent);
-            DrawText(dc, ai ? "실제 AI 연결 화면 · 데이터가 없으면 미수신으로 표시" : "실행 중인 앱 화면 · 수치는 PC 전체 사용량", 32, height - 30, 11, skin.Outline);
+            dc.DrawImage(petImage, new Rect(side + 24, 190, pet.ActualWidth * 1.45, pet.ActualHeight * 1.45));
+            DrawText(dc, skin.Name + " 스킨 적용", side + 10, 514, 20, ink);
+            DrawText(dc, "큰 글자 · 다크 모드 · 호버 요약", side, 562, 15, ink);
+            DrawText(dc, "PC 상태 · AI 작업 · 알람 · 볼륨", side, 595, 15, ink);
+            DrawText(dc, "Windows · C# / WPF · v0.4.0", side, 640, 13, accent);
+            DrawText(dc, ai ? "실제 AI 작업 화면 · 데이터가 없으면 미수신으로 표시" : "실제 앱 화면 · 수치는 PC 전체 사용량", 32, height - 30, 11, ink);
         }
-        var bitmap = new RenderTargetBitmap(1230, (int)Math.Ceiling(height * 1.5), 144, 144, PixelFormats.Pbgra32);
+        var bitmap = new RenderTargetBitmap((int)Math.Ceiling(width * 1.5), (int)Math.Ceiling(height * 1.5), 144, 144, PixelFormats.Pbgra32);
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));
