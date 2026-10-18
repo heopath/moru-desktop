@@ -250,24 +250,36 @@ public partial class App : Application
     }
     internal void ChangeHover(bool enabled) { Preferences = Preferences with { HoverEnabled = enabled }; pet.ApplyPreferences(); Save(); }
     internal void ChangeAlarmSound(bool enabled) { Preferences = Preferences with { AlarmSound = enabled }; if (!enabled) StopAlarmSound(); Save(); }
+    internal void ChangeRepeatTimer(bool enabled) { Preferences = Preferences with { RepeatTimer = enabled }; Save(); }
     internal bool PlayAlarmSound() => alarmTone.Play();
     internal void StopAlarmSound() => alarmTone.Stop();
     internal bool AddReminder(Reminder reminder)
     {
         if (Preferences.Reminders.Count >= 8) return false;
         Preferences = (Preferences with { Reminders = Preferences.Reminders.Append(reminder).ToArray() }).Normalize();
-        Save(); reminders?.Schedule(); settingsPanel?.RefreshAlarms(); panel?.RefreshClock(); return true;
+        RefreshReminders(); return true;
     }
     internal void RemoveReminder(Guid id)
     {
         Preferences = Preferences with { Reminders = Preferences.Reminders.Where(r => r.Id != id).ToArray() };
-        Save(); reminders?.Schedule(); settingsPanel?.RefreshAlarms(); panel?.RefreshClock();
+        alarmPanel?.Remove(id);
+        RefreshReminders();
     }
-    private void DeliverReminders(Reminder[] due)
+    private void RefreshReminders()
     {
-        var ids = due.Select(r => r.Id).ToHashSet();
-        Preferences = Preferences with { Reminders = Preferences.Reminders.Where(r => !ids.Contains(r.Id)).ToArray() };
-        Save(); settingsPanel?.RefreshAlarms(); panel?.RefreshClock();
+        Save(); reminders?.Schedule(); settingsPanel?.RefreshAlarms(); panel?.RefreshClock(); pet.RefreshReminderHover();
+    }
+    internal bool SnoozeReminders(IEnumerable<Reminder> displayed)
+    {
+        if (!ReminderRules.TrySnooze(Preferences.Reminders, displayed, DateTimeOffset.Now, out var updated)) return false;
+        Preferences = Preferences with { Reminders = updated };
+        RefreshReminders(); return true;
+    }
+    private void DeliverReminders(Reminder[] due, DateTimeOffset now)
+    {
+        // Use the same cutoff as the delivered set, even if the wall clock changes during this callback.
+        Preferences = Preferences with { Reminders = ReminderRules.AfterDelivery(Preferences.Reminders, now) };
+        RefreshReminders();
         alarmPanel ??= new AlarmWindow(this) { Owner = pet, Icon = pet.Icon };
         alarmPanel.Deliver(due); WindowPlacement.Beside(alarmPanel, pet);
         if (Preferences.AlarmSound) PlayAlarmSound();

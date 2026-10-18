@@ -35,6 +35,7 @@ public partial class SettingsWindow : Window
         TopmostToggle.IsChecked = p.AlwaysOnTop; AnimationToggle.IsChecked = p.AnimationEnabled;
         CodexToggle.IsChecked = p.CodexEnabled; ClaudeToggle.IsChecked = p.ClaudeEnabled;
         AlarmSoundToggle.IsChecked = p.AlarmSound;
+        RepeatTimerToggle.IsChecked = p.RepeatTimer;
         TextSizePicker.SelectedIndex = p.TextSize switch { 18 => 1, 20 => 2, _ => 0 };
         RefreshPicker.SelectedIndex = p.RefreshSeconds switch { 5 => 1, 10 => 2, _ => 0 };
         SkinList.ItemsSource = host.Skins; RefreshConnections(); RefreshAlarms(); ready = true;
@@ -87,6 +88,7 @@ public partial class SettingsWindow : Window
         RefreshConnections();
     }
     private void OnAlarmSound(object sender, RoutedEventArgs e) { if (ready) host.ChangeAlarmSound(AlarmSoundToggle.IsChecked == true); }
+    private void OnRepeatTimer(object sender, RoutedEventArgs e) { if (ready) host.ChangeRepeatTimer(RepeatTimerToggle.IsChecked == true); }
     private void OnQuickAlarm(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string minutes }) StartTimer(minutes);
@@ -94,10 +96,10 @@ public partial class SettingsWindow : Window
     private void OnStartTimer(object sender, RoutedEventArgs e) => StartTimer(TimerMinutes.Text);
     private void StartTimer(string minutes)
     {
-        if (!ReminderRules.TryCreateAfter(minutes, DateTimeOffset.Now, out var reminder))
+        if (!ReminderRules.TryCreateAfter(minutes, DateTimeOffset.Now, out var reminder, RepeatTimerToggle.IsChecked == true))
         { AlarmNotice.Text = "1~1440 사이의 정수(분)를 입력해 주세요."; return; }
         if (host.AddReminder(reminder!))
-            AlarmNotice.Text = $"{reminder!.Title} 시작 · {reminder.DueAt.ToLocalTime():HH:mm}에 알림" + (host.Preferences.AlarmSound ? "" : " · 소리 꺼짐");
+            AlarmNotice.Text = $"{reminder!.Title} 시작 · {reminder.DueAt.ToLocalTime():HH:mm}에 알림" + (reminder.IsRepeating ? $" · {reminder.RepeatLabel}" : "") + (host.Preferences.AlarmSound ? "" : " · 소리 꺼짐");
         else AlarmNotice.Text = "알람은 최대 8개예요. 기존 알람을 정리해 주세요.";
     }
     private void OnPreviewSound(object sender, RoutedEventArgs e) => AlarmNotice.Text =

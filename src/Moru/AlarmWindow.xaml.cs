@@ -17,17 +17,22 @@ public partial class AlarmWindow : Window
     }
     internal void Deliver(IEnumerable<Reminder> due)
     {
-        reminders.AddRange(due);
+        foreach (var reminder in due) { reminders.RemoveAll(r => r.Id == reminder.Id); reminders.Add(reminder); }
         if (reminders.Count > 8) reminders.RemoveRange(0, reminders.Count - 8);
         Items.ItemsSource = reminders.ToArray();
         Show();
     }
     private void OnDismiss(object sender, RoutedEventArgs e) { host.StopAlarmSound(); reminders.Clear(); Hide(); }
+    internal void Remove(Guid id)
+    {
+        reminders.RemoveAll(r => r.Id == id);
+        Items.ItemsSource = reminders.ToArray();
+        if (reminders.Count == 0) { host.StopAlarmSound(); Hide(); }
+    }
     private void OnSnooze(object sender, RoutedEventArgs e)
     {
-        if (host.Preferences.Reminders.Count + reminders.Count > 8)
+        if (!host.SnoozeReminders(reminders))
         { MessageBox.Show(this, "예약 알람을 정리한 후 다시 시도해 주세요.", "알람이 가득 찼어요"); return; }
-        foreach (var reminder in reminders) host.AddReminder(reminder with { Id = Guid.NewGuid(), DueAt = DateTimeOffset.Now.AddMinutes(5) });
         host.StopAlarmSound(); reminders.Clear(); Hide();
     }
 }

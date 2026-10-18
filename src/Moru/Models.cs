@@ -16,6 +16,7 @@ internal sealed record Preferences
     public int TextSize { get; init; } = 16;
     public bool HoverEnabled { get; init; } = true;
     public bool AlarmSound { get; init; } = true;
+    public bool RepeatTimer { get; init; }
     public IReadOnlyList<Reminder> Reminders { get; init; } = Array.Empty<Reminder>();
     public int? X { get; init; }
     public int? Y { get; init; }
@@ -26,7 +27,10 @@ internal sealed record Preferences
         RefreshSeconds = RefreshSeconds is 2 or 5 or 10 ? RefreshSeconds : 2,
         TextSize = TextSize is 16 or 18 or 20 ? TextSize : 16,
         Reminders = (Reminders ?? Array.Empty<Reminder>()).Where(r => r is not null && r.Id != Guid.Empty && r.DueAt.Year is >= 2020 and <= 2100)
-            .DistinctBy(r => r.Id).Take(8).Select(r => r with { Title = string.IsNullOrWhiteSpace(r.Title) ? "잠깐 쉬어 가요" : r.Title.Trim()[..Math.Min(40, r.Title.Trim().Length)] }).ToArray(),
+            .DistinctBy(r => r.Id).Take(8).Select(r => r with {
+                Title = string.IsNullOrWhiteSpace(r.Title) ? "잠깐 쉬어 가요" : r.Title.Trim()[..Math.Min(40, r.Title.Trim().Length)],
+                RepeatMinutes = r.IsRepeating ? r.RepeatMinutes : 0
+            }).ToArray(),
         X = X is > -100000 and < 100000 ? X : null,
         Y = Y is > -100000 and < 100000 ? Y : null
     };

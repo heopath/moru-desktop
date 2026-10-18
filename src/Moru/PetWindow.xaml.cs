@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using System.Globalization;
+using System.Linq;
 
 namespace Moru;
 
@@ -17,6 +18,7 @@ public partial class PetWindow : Window
     private readonly SystemMetrics hoverMetrics = new();
     private readonly DispatcherTimer hoverTimer;
     private bool paused;
+    private long nextHoverSample;
 
     internal PetWindow(App app)
     {
@@ -60,25 +62,44 @@ public partial class PetWindow : Window
     internal void ApplyPreferences()
     {
         ToolTipService.SetIsEnabled(PetButton, host.Preferences.HoverEnabled);
-        hoverTimer.Interval = TimeSpan.FromSeconds(host.Preferences.RefreshSeconds);
+        UpdateHoverInterval();
+        nextHoverSample = 0;
         if (!host.Preferences.HoverEnabled) CloseHover();
     }
     internal void CloseHover() { HoverTip.IsOpen = false; hoverTimer.Stop(); hoverMetrics.Reset(); }
     private void OnHoverOpened(object sender, RoutedEventArgs e)
     {
         if (paused || !host.Preferences.HoverEnabled || !IsVisible) { CloseHover(); return; }
-        hoverMetrics.Reset(); RefreshHover(); hoverTimer.Start();
+        hoverMetrics.Reset(); nextHoverSample = 0; UpdateHoverInterval(); RefreshHover(); hoverTimer.Start();
     }
     private void OnHoverClosed(object sender, RoutedEventArgs e) { hoverTimer.Stop(); hoverMetrics.Reset(); }
+    private void UpdateHoverInterval() => hoverTimer.Interval = TimeSpan.FromSeconds(host.Preferences.Reminders.Count > 0 ? 1 : host.Preferences.RefreshSeconds);
+    internal void RefreshReminderHover()
+    {
+        UpdateHoverInterval();
+        if (HoverTip.IsOpen) RefreshHover();
+    }
     private void RefreshHover()
     {
         if (!HoverTip.IsOpen || paused) { hoverTimer.Stop(); return; }
-        var sample = hoverMetrics.Read();
+        // The countdown ticks once a second only while visible. Keep metric sampling at the user's interval.
+        if (Environment.TickCount64 >= nextHoverSample)
+        {
+            var sample = hoverMetrics.Read();
+            string cpu = sample.CpuPercent is double value ? $"{value:0}%" : "측정 중";
+            string ram = sample.TotalMemory > 0 ? $"{sample.MemoryPercent:0}%" : "—";
+            HoverMetrics.Text = $"CPU {cpu}  ·  메모리 {ram}";
+            nextHoverSample = Environment.TickCount64 + host.Preferences.RefreshSeconds * 1000L;
+        }
         HoverTime.Text = DateTime.Now.ToString("HH:mm");
         HoverDate.Text = DateTime.Now.ToString("M월 d일 dddd", CultureInfo.GetCultureInfo("ko-KR"));
-        string cpu = sample.CpuPercent is double value ? $"{value:0}%" : "측정 중";
-        string ram = sample.TotalMemory > 0 ? $"{sample.MemoryPercent:0}%" : "—";
-        HoverMetrics.Text = $"CPU {cpu}  ·  메모리 {ram}";
+        var next = host.Preferences.Reminders.MinBy(r => r.DueAt);
+        HoverAlarm.Visibility = next is null ? Visibility.Collapsed : Visibility.Visible;
+        if (next is not null)
+        {
+            HoverRemaining.Text = "다음 알람 · " + ReminderRules.Remaining(next, DateTimeOffset.Now);
+            HoverAlarmDetail.Text = $"{next.Title} · {next.RepeatLabel}" + (host.Preferences.Reminders.Count > 1 ? $" · 외 {host.Preferences.Reminders.Count - 1}개" : "");
+        }
         HoverAi.Text = host.Preferences.CodexEnabled || host.Preferences.ClaudeEnabled ? "AI · " + AiActivity.Label(host.Ai.Activity.State) : "AI 연결 꺼짐";
     }
     internal void PreviewAnimation(PetActivity value) => animator.Preview(value);
