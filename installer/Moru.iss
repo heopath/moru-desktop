@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.8.0"
+  #define AppVersion "0.8.1"
 #endif
 #define AppName "모루"
 #define SourceDir "..\artifacts\Moru-win-x64"

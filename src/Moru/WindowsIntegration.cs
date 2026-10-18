@@ -33,8 +33,9 @@ internal static class WindowsIntegration
                     && command.EndsWith("Moru.exe\" --startup", StringComparison.OrdinalIgnoreCase))
                     SetStartup(true, executable);
                 CreateDesktopShortcut(executable, Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
-                var settings = new SettingsStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Moru"));
-                if (!settings.Save(settings.Load() with { DesktopShortcutCreated = true })) return 1;
+                // Installation must never rewrite preferences or user skins. In particular,
+                // a transient read failure must not replace saved settings with defaults.
+                // The normal first launch records its own shortcut marker.
             }
             return 0;
         }
