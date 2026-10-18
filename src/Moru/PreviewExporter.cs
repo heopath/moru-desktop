@@ -10,7 +10,7 @@ namespace Moru;
 internal static class PreviewExporter
 {
     // Render only our WPF visuals. The user's desktop and other apps never enter this image.
-    internal static void Save(string path, Window panel, Window pet, Skin skin)
+    internal static void Save(string path, Window panel, Window pet, Skin skin, bool ai = false)
     {
         panel.UpdateLayout();
         pet.UpdateLayout();
@@ -28,8 +28,9 @@ internal static class PreviewExporter
             DrawText(dc, skin.Name + " 스킨 적용", 468, 498, 20, skin.Outline);
             DrawText(dc, "캐릭터 클릭 → CPU·메모리 확인", 446, 542, 15, skin.Outline);
             DrawText(dc, "PNG 한 장으로 나만의 친구 추가", 446, 571, 15, skin.Outline);
-            DrawText(dc, "Windows · C# / WPF · v0.2.0", 446, 620, 13, skin.Accent);
-            DrawText(dc, "실행 중인 앱 화면 · 수치는 PC 전체 사용량", 32, height - 30, 11, skin.Outline);
+            DrawText(dc, "애니메이션 · Codex / Claude Code 연결", 446, 601, 14, skin.Outline);
+            DrawText(dc, "Windows · C# / WPF · v0.3.0", 446, 640, 13, skin.Accent);
+            DrawText(dc, ai ? "실제 AI 연결 화면 · 데이터가 없으면 미수신으로 표시" : "실행 중인 앱 화면 · 수치는 PC 전체 사용량", 32, height - 30, 11, skin.Outline);
         }
         var bitmap = new RenderTargetBitmap(1230, (int)Math.Ceiling(height * 1.5), 144, 144, PixelFormats.Pbgra32);
         bitmap.Render(visual);

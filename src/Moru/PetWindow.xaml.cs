@@ -10,11 +10,16 @@ public partial class PetWindow : Window
     private readonly App host;
     private Point? pointerDown;
     private bool dragged;
+    private readonly PetAnimator animator;
+    private PetActivity activity;
 
     internal PetWindow(App app)
     {
         host = app;
         InitializeComponent();
+        animator = new PetAnimator(Character);
+        animator.SetEnabled(host.Preferences.AnimationEnabled);
+        Closed += (_, _) => animator.Dispose();
         var menu = new ContextMenu();
         AddMenu(menu, "내 PC 상태 / 스킨", () => host.ShowPanel());
         AddMenu(menu, "캐릭터 숨기기", () => host.TogglePet());
@@ -35,8 +40,13 @@ public partial class PetWindow : Window
     internal void ApplySkin(Skin skin)
     {
         Character.Skin = skin;
-        NameLabel.Text = $"{skin.Name} · 클릭해 봐요";
+        UpdateLabel();
     }
+    internal void SetActivity(PetActivity value) { activity = value; UpdateLabel(); animator.SetState(value); }
+    private void UpdateLabel() => NameLabel.Text = activity == PetActivity.Idle ? $"{host.CurrentSkin.Name} · 클릭해 봐요" : AiActivity.Label(activity);
+    internal void SetAnimation(bool enabled) => animator.SetEnabled(enabled);
+    internal void SetPaused(bool value) => animator.SetPaused(value);
+    internal void PreviewAnimation(PetActivity value) => animator.Preview(value);
 
     private static void AddMenu(ContextMenu menu, string text, Action action)
     {
@@ -48,7 +58,7 @@ public partial class PetWindow : Window
     private void OnPetClick(object sender, RoutedEventArgs e)
     {
         pointerDown = null;
-        if (!dragged) host.TogglePanel();
+        if (!dragged) { animator.Preview(PetActivity.Done); host.TogglePanel(); }
         dragged = false;
     }
     private void OnPointerDown(object sender, MouseButtonEventArgs e)
@@ -66,7 +76,9 @@ public partial class PetWindow : Window
         dragged = true;
         Mouse.Capture(null);
         host.HidePanel();
+        animator.SetPaused(true);
         try { DragMove(); } catch (InvalidOperationException) { }
+        animator.SetPaused(false);
         WindowPlacement.Clamp(this);
         host.SavePosition();
         e.Handled = true;

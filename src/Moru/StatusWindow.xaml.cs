@@ -26,10 +26,12 @@ public partial class StatusWindow : Window
         timer.Tick += (_, _) => RefreshMetrics();
         SkinList.ItemsSource = host.Skins;
         TopmostToggle.IsChecked = host.Preferences.AlwaysOnTop;
+        AnimationToggle.IsChecked = host.Preferences.AnimationEnabled;
         RefreshPicker.SelectedIndex = host.Preferences.RefreshSeconds switch { 5 => 1, 10 => 2, _ => 0 };
         MaxHeight = Math.Max(360, SystemParameters.WorkArea.Height - 24);
-        Height = Math.Min(MaxHeight, host.Skins.Count > 3 ? 790 : 700);
+        Height = Math.Min(MaxHeight, host.Skins.Count > 3 ? 870 : 780);
         ready = true;
+        RefreshAi();
         IsVisibleChanged += (_, _) => UpdateSampling();
         StateChanged += (_, _) => UpdateSampling();
         Loaded += (_, _) => SelectCurrentSkin();
@@ -91,7 +93,7 @@ public partial class StatusWindow : Window
     internal void ReloadSkins()
     {
         SkinList.ItemsSource = host.Skins;
-        Height = Math.Min(MaxHeight, host.Skins.Count > 3 ? 790 : 700);
+        Height = Math.Min(MaxHeight, host.Skins.Count > 3 ? 870 : 780);
         Dispatcher.BeginInvoke(() =>
         {
             host.PositionPanel();
@@ -162,6 +164,10 @@ public partial class StatusWindow : Window
     internal void ShowSaveResult(bool saved) => FooterStatus.Text = saved
         ? "패널을 닫으면 측정도 쉬어요." : "설정을 저장하지 못했어요. 저장 폴더를 확인해 주세요.";
     private void OnHide(object sender, RoutedEventArgs e) => Hide();
+    private void OnAi(object sender, RoutedEventArgs e) => host.ShowAi();
+    private void OnAnimation(object sender, RoutedEventArgs e) { if (ready) host.ChangeAnimation(AnimationToggle.IsChecked == true); }
+    internal void RefreshAi() => AiButton.Content = host.Preferences.CodexEnabled || host.Preferences.ClaudeEnabled
+        ? "AI 작업 · " + AiActivity.Label(host.Ai.Activity.State) : "AI 작업 · Codex / Claude Code 연결";
     private void OnExit(object sender, RoutedEventArgs e) => host.ExitApp();
     private void OnKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) Hide(); }
     private void OnClosing(object? sender, CancelEventArgs e)

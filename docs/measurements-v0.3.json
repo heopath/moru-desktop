@@ -1,0 +1,11 @@
+{
+  "Label": "v0.3-final-chiikawa-animation-live-codex-panel-closed",
+  "StartedAt": "2026-10-18T15:52:56.0455077+09:00",
+  "Seconds": 30.52,
+  "LogicalProcessors": 24,
+  "CpuMilliseconds": 2062.5,
+  "CpuPercentOfMachine": 0.2815,
+  "AverageWorkingSetMiB": 189.97,
+  "PeakWorkingSetMiB": 199.0,
+  "AveragePrivateCommitMiB": 129.64
+}

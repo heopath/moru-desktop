@@ -21,6 +21,7 @@ public partial class App : Application
     private UserSkinStore userSkins = null!;
     private PetWindow pet = null!;
     private StatusWindow? panel;
+    private AiWindow? aiPanel;
     private Forms.NotifyIcon? tray;
     private Icon? trayIcon;
     private Forms.ToolStripMenuItem? visibilityItem;
@@ -30,6 +31,8 @@ public partial class App : Application
     internal IReadOnlyList<Skin> Skins { get; private set; } = Array.Empty<Skin>();
     internal Skin CurrentSkin { get; private set; } = null!;
     internal bool Exiting { get; private set; }
+    internal AiMonitor Ai { get; private set; } = null!;
+    internal string ClaudeNotice { get; private set; } = "Claude Code의 새 세션부터 상태를 받아요.";
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -52,6 +55,7 @@ public partial class App : Application
         userSkins = new UserSkinStore(userSkinDirectory);
         DiagnosticLog.Write("Load preferences");
         Preferences = store.Load();
+        Ai = new AiMonitor(Dispatcher, suffix);
         Skins = SkinCatalog.Load(Path.Combine(AppContext.BaseDirectory, "Skins"))
             .Concat(SkinCatalog.Load(userSkinDirectory, includeFallback: false, isCustom: true))
             .GroupBy(s => s.Id).Select(group => group.First()).Take(12).ToArray();
@@ -75,9 +79,18 @@ public partial class App : Application
         pet.ContentRendered += (_, _) => DiagnosticLog.Window("Pet rendered", pet);
         DiagnosticLog.Write("Show pet");
         pet.Show();
+        Ai.Changed += () => { pet.SetActivity(Ai.Activity.State); panel?.RefreshAi(); aiPanel?.Refresh(); };
+        Ai.TaskCompleted += () => pet.PreviewAnimation(PetActivity.Done);
+        Ai.SetCodex(Preferences.CodexEnabled);
+        Ai.SetClaude(Preferences.ClaudeEnabled);
+        if (e.Args.Contains("--enable-codex")) ChangeCodex(true);
+        if (e.Args.Contains("--enable-claude")) ChangeClaude(true);
+        if (e.Args.Contains("--show-ai")) Dispatcher.BeginInvoke(ShowAi);
         DiagnosticLog.Window("Pet shown", pet);
         string? importPath = Option(e.Args, "--import-png");
         string? previewPath = Option(e.Args, "--export-preview");
+        string? motionPath = Option(e.Args, "--export-motion");
+        string? aiPreviewPath = Option(e.Args, "--export-ai-preview");
         if (importPath is not null)
         {
             try { ImportSkin(Path.GetFullPath(importPath)); }
@@ -87,6 +100,22 @@ public partial class App : Application
                 MessageBox.Show("PNG 친구를 추가하지 못했어요. 파일 형식·크기와 저장 폴더를 확인해 주세요.", "모루");
             }
         }
+        if (motionPath is not null) Dispatcher.BeginInvoke(() => MotionExporter.Save(motionPath, pet,
+            () => { if (e.Args.Contains("--exit-after-export")) ExitApp(); }));
+        if (aiPreviewPath is not null) Dispatcher.BeginInvoke(() =>
+        {
+            ShowAi();
+            var capture = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            capture.Tick += (_, _) =>
+            {
+                capture.Stop();
+                try { PreviewExporter.Save(aiPreviewPath, aiPanel!, pet, CurrentSkin, true); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                { MessageBox.Show("AI 소개 화면을 저장하지 못했어요.", "모루"); }
+                if (e.Args.Contains("--exit-after-export")) ExitApp();
+            };
+            capture.Start();
+        });
         if (e.Args.Contains("--show-panel") || previewPath is not null) Dispatcher.BeginInvoke(() =>
         {
             ShowPanel();
@@ -127,6 +156,11 @@ public partial class App : Application
         DiagnosticLog.Window("Panel shown", panel);
     }
     internal void HidePanel() => panel?.Hide();
+    internal void ShowAi()
+    {
+        aiPanel ??= new AiWindow(this) { Owner = pet, Icon = pet.Icon };
+        aiPanel.Show(); WindowPlacement.Beside(aiPanel, pet); aiPanel.Refresh(); aiPanel.Activate();
+    }
     internal void PositionPanel() { if (panel is not null) WindowPlacement.Beside(panel, pet); }
     internal void TogglePanel() { if (panel?.IsVisible == true) HidePanel(); else ShowPanel(); }
     internal void TogglePet()
@@ -179,6 +213,30 @@ public partial class App : Application
         Save();
     }
     internal void ChangeInterval(int seconds) { Preferences = Preferences with { RefreshSeconds = seconds }; Save(); }
+    internal void ChangeAnimation(bool enabled)
+    {
+        Preferences = Preferences with { AnimationEnabled = enabled }; pet.SetAnimation(enabled); Save();
+    }
+    internal void PreviewAnimation(PetActivity value) => pet.PreviewAnimation(value);
+    internal void ChangeCodex(bool enabled)
+    {
+        Preferences = Preferences with { CodexEnabled = enabled }; Ai.SetCodex(enabled); Save();
+    }
+    internal bool ChangeClaude(bool enabled)
+    {
+        try
+        {
+            string folder = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
+            ClaudeNotice = ClaudeBridge.Configure(Path.Combine(folder, "settings.json"), Environment.ProcessPath!, Ai.PipeName, enabled);
+            Preferences = Preferences with { ClaudeEnabled = enabled }; Ai.SetClaude(enabled); Save(); panel?.RefreshAi();
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or ArgumentException or InvalidOperationException)
+        {
+            ClaudeNotice = "연결 설정을 저장하지 못했어요. Claude 설정 파일 형식과 권한을 확인해 주세요.";
+            panel?.RefreshAi(); aiPanel?.Refresh(); return false;
+        }
+    }
     private void Save()
     {
         bool saved = store.Save(Preferences);
@@ -231,12 +289,14 @@ public partial class App : Application
     {
         suspended = e.Mode == PowerModes.Suspend || (suspended && e.Mode != PowerModes.Resume);
         panel?.SetPaused(sessionLocked || suspended);
+        pet.SetPaused(sessionLocked || suspended);
     });
     private void OnSessionChanged(object sender, SessionSwitchEventArgs e) => Dispatcher.BeginInvoke(() =>
     {
         if (e.Reason == SessionSwitchReason.SessionLock) sessionLocked = true;
         if (e.Reason == SessionSwitchReason.SessionUnlock) sessionLocked = false;
         panel?.SetPaused(sessionLocked || suspended);
+        pet.SetPaused(sessionLocked || suspended);
     });
     internal void ExitApp()
     {
@@ -248,6 +308,7 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Exiting = true;
+        Ai?.Dispose();
         SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
         SystemEvents.PowerModeChanged -= OnPowerChanged;
         SystemEvents.SessionSwitch -= OnSessionChanged;

@@ -64,6 +64,8 @@
                   ToolTip="다른 프로그램이나 바탕화면을 담지 않고, 모루의 현재 화면을 PNG로 저장해요." />
         </Grid>
 
+        <Button x:Name="AiButton" Content="AI 작업 · Codex / Claude Code" Click="OnAi" Margin="0,12,0,0" FontSize="11" />
+        <CheckBox x:Name="AnimationToggle" Content="캐릭터 애니메이션" FontSize="11" Margin="0,12,0,0" Checked="OnAnimation" Unchecked="OnAnimation" />
         <Grid Margin="0,13,0,0">
           <CheckBox x:Name="TopmostToggle" Content="항상 위에" FontFamily="Malgun Gothic" FontSize="11" VerticalAlignment="Center"
                     Checked="OnTopmostChanged" Unchecked="OnTopmostChanged" ToolTip="다른 창 위에도 캐릭터를 표시합니다" />

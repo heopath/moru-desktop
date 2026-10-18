@@ -7,6 +7,9 @@ internal sealed record Preferences
     public string SkinId { get; init; } = "sprout";
     public int RefreshSeconds { get; init; } = 2;
     public bool AlwaysOnTop { get; init; } = true;
+    public bool AnimationEnabled { get; init; } = true;
+    public bool CodexEnabled { get; init; }
+    public bool ClaudeEnabled { get; init; }
     public int? X { get; init; }
     public int? Y { get; init; }
 
