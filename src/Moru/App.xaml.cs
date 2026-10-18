@@ -21,6 +21,7 @@ public partial class App : Application
     private IReadOnlyList<Skin> allSkins = Array.Empty<Skin>();
     private SettingsStore store = null!;
     private UserSkinStore userSkins = null!;
+    private string userSkinDirectory = "";
     private PetWindow pet = null!;
     private StatusWindow? panel;
     private AiWindow? aiPanel;
@@ -75,7 +76,7 @@ public partial class App : Application
         }
         if (IntegrationEnabled) installerMutex = new Mutex(false, @"Local\Moru.DesktopCompanion.Install");
         store = new SettingsStore(directory);
-        string userSkinDirectory = Path.Combine(directory, "UserSkins");
+        userSkinDirectory = Path.Combine(directory, "UserSkins");
         userSkins = new UserSkinStore(userSkinDirectory);
         DiagnosticLog.Write("Load preferences");
         Preferences = store.Load();
@@ -317,6 +318,24 @@ public partial class App : Application
         Preferences = updated;
         Skins = SkinNamesPolicy.Visible(allSkins, Preferences);
         settingsPanel?.ReloadSkins();
+    }
+    internal System.Threading.Tasks.Task ExportCharacters(string path)
+    {
+        var snapshot = allSkins;
+        var preferences = Preferences with { SkinId = CurrentSkin.Id };
+        return System.Threading.Tasks.Task.Run(() => CharacterBackup.Export(path, userSkinDirectory, snapshot, preferences));
+    }
+    internal (int Added, int Existing) RestoreCharacters(CharacterBackup backup)
+    {
+        var result = backup.Restore(userSkinDirectory, allSkins, Preferences, store.Save);
+        allSkins = result.All;
+        Preferences = result.Preferences;
+        Skins = SkinNamesPolicy.Visible(allSkins, Preferences);
+        CurrentSkin = Skins.FirstOrDefault(s => s.Id == Preferences.SkinId) ?? Skins[0];
+        Theme.Apply(this, Preferences, CurrentSkin);
+        pet.ApplySkin(CurrentSkin);
+        settingsPanel?.ReloadSkins();
+        return (result.Added, result.Existing);
     }
     internal void ExportPreview(string path)
     {

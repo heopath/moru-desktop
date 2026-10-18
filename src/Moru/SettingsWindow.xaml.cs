@@ -160,6 +160,43 @@ public partial class SettingsWindow : Window
         try { host.RestoreBundledSkins(); SaveNotice.Text = "기본 캐릭터를 복원했어요."; }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { SkinManagementNotice.Text = ex.Message; }
     }
+    private async void OnBackupCharacters(object sender, RoutedEventArgs e)
+    {
+        var picker = new Microsoft.Win32.SaveFileDialog { Title = "캐릭터 백업 저장",
+            Filter = "모루 캐릭터 백업 (*.moru-backup)|*.moru-backup", DefaultExt = ".moru-backup", AddExtension = true,
+            FileName = $"모루-캐릭터-{DateTime.Now:yyyyMMdd-HHmm}.moru-backup" };
+        if (picker.ShowDialog(this) != true) return;
+        BackupActions.IsEnabled = false; BackupNotice.Text = "이미지와 이름을 백업하고 있어요…";
+        try { await host.ExportCharacters(picker.FileName); BackupNotice.Text = $"저장 완료 · {Path.GetFileName(picker.FileName)}"; }
+        catch (Exception ex) when (IsBackupError(ex)) { BackupNotice.Text = BackupError(ex); }
+        finally { BackupActions.IsEnabled = true; }
+    }
+    private async void OnRestoreCharacters(object sender, RoutedEventArgs e)
+    {
+        var picker = new Microsoft.Win32.OpenFileDialog { Title = "캐릭터 백업 복원",
+            Filter = "모루 캐릭터 백업 (*.moru-backup)|*.moru-backup", CheckFileExists = true };
+        if (picker.ShowDialog(this) != true) return;
+        BackupActions.IsEnabled = false; BackupNotice.Text = "백업 파일을 확인하고 있어요…";
+        try
+        {
+            using var backup = await System.Threading.Tasks.Task.Run(() => CharacterBackup.Read(picker.FileName));
+            string names = string.Join(", ", backup.Skins.Select(s => s.Name));
+            string message = $"캐릭터 {backup.Skins.Count}명 · 이미지 {backup.ImageCount}장을 복원할까요?\n{names}\n\n"
+                + "현재 친구는 지우지 않아요. 같은 친구는 중복 추가하지 않고, 내용이 다르면 별도 친구로 추가해요.\n"
+                + "기본 캐릭터 이름과 선택한 친구도 백업 당시로 복원해요.";
+            if (MessageBox.Show(this, message, "캐릭터 백업 복원", MessageBoxButton.YesNo,
+                MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+            { BackupNotice.Text = "복원을 취소했어요. 현재 친구는 그대로예요."; return; }
+            var result = host.RestoreCharacters(backup);
+            BackupNotice.Text = $"복원 완료 · {result.Added}명 추가, 이미 있는 친구 {result.Existing}명 확인";
+        }
+        catch (Exception ex) when (IsBackupError(ex)) { BackupNotice.Text = BackupError(ex); }
+        finally { BackupActions.IsEnabled = true; }
+    }
+    private static bool IsBackupError(Exception ex) => ex is IOException or InvalidDataException or UnauthorizedAccessException
+        or ArgumentException or NotSupportedException or FormatException or System.Runtime.InteropServices.COMException;
+    private static string BackupError(Exception ex) => ex is InvalidDataException ? ex.Message
+        : "백업을 읽거나 저장하지 못했어요. 파일과 저장 폴더를 확인해 주세요.";
     private void OnStateChoice(object sender, SelectionChangedEventArgs e) { if (ready) RefreshStateEditor(); }
     private void OnStatePreview(object sender, RoutedEventArgs e) => host.PreviewAnimation(SelectedState);
     private void OnStateImage(object sender, RoutedEventArgs e)

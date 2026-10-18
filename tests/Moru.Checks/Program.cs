@@ -89,6 +89,7 @@ internal static class Program
         UtilityChecks.Run(scratch, Check);
         StateSkinChecks.Run(scratch, Check);
         SkinManagementChecks.Run(scratch, Check);
+        BackupChecks.Run(scratch, Check);
         Console.WriteLine($"PASS: {passed} checks");
         return 0;
     }
