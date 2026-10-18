@@ -28,11 +28,27 @@ internal static class AiChecks
         ai.Apply(new("Codex", "main", "done", now));
         check("Old events cannot overwrite newer state", ai.State == PetActivity.Unknown);
         ai.Apply(new("Codex", "main", "usage", now.AddMinutes(7), Primary: new(42, 300, null)));
-        check("Quota percentage has an explicit window", ai.Usage("Codex").Contains("5시간 한도 42%"));
+        check("Quota shows remaining percentage with explicit window", ai.Usage("Codex").Contains("5시간 한도 58% 남음"));
+        ai.Apply(new("Codex", "main", "usage", now.AddMinutes(8), Primary: new(100, 300, null), Secondary: new(0, 10080, null)));
+        check("Exhausted and unused quotas show zero and full remaining", ai.Usage("Codex").Contains("5시간 한도 0% 남음") && ai.Usage("Codex").Contains("7일 한도 100% 남음"));
+        ai.Apply(new("Claude Code", "claude", "usage", now, Context: 25, Primary: new(12.5, 300, null)));
+        check("Claude remaining quota stays separate from context usage", ai.Usage("Claude Code").Contains("87.5% 남음") && ai.Usage("Claude Code").Contains("컨텍스트 25% 사용"));
+        ai.Clear("Claude Code");
+        ai.Apply(new("Claude Code", "claude", "usage", now, Context: 25));
+        check("Context alone does not imply known account quota", ai.Usage("Claude Code").Contains("남은 한도 미수신") && !ai.Usage("Claude Code").Contains("100%"));
+        ai.Clear("Claude Code");
         for (int i = 0; i < 100; i++) ai.Apply(new("Codex", "session" + i, "idle", now.AddMinutes(10).AddSeconds(i)));
         check("Session history is bounded", ai.Sessions.Count() == 64);
         ai.Clear("Codex");
         check("Disconnect clears state and usage", !ai.Sessions.Any() && ai.Usage("Codex").Contains("미수신"));
+
+        const string thread = "019a1234-5678-7123-8abc-123456789abc";
+        var linked = new AiSession("Codex", thread, PetActivity.Working, now);
+        check("Codex card opens the exact thread", CodexThreadLink.For(linked) == "codex://threads/" + thread && new AiTaskRow(linked).CanOpen);
+        check("Codex child opens its own thread, not the parent's", CodexThreadLink.For(linked with { Child = true, Parent = "019a1234-5678-7123-8abc-123456789def" }) == "codex://threads/" + thread);
+        check("Claude session is never opened in Codex", CodexThreadLink.For(linked with { Provider = "Claude Code" }) is null);
+        foreach (string invalid in new[] { "", "main", "rollout-" + thread, thread + "?prompt=run", "https://example.com", thread + "\n", Guid.Empty.ToString() })
+            check("Untrusted/non-thread session cannot launch: " + invalid.Replace("\n", "\\n"), CodexThreadLink.For(linked with { Id = invalid }) is null);
 
         string Event(string kind) => JsonSerializer.Serialize(new { type = "event_msg", timestamp = now, payload = new { type = kind } });
         check("Codex completed turn maps to done", AiJson.Codex(Event("task_complete"), "a", false, null)?.Kind == "done");

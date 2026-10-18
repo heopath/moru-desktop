@@ -87,15 +87,16 @@ internal sealed class AiActivity
         {
             foreach (var w in new[] { l.Primary, l.Secondary }.Where(w => w is not null))
             {
-                string window = w!.Minutes >= 1440 ? $"{w.Minutes / 1440d:0.#}일" : w.Minutes >= 60 ? $"{w.Minutes / 60d:0.#}시간" : $"{w.Minutes}분";
-                lines.Add($"{window} 한도 {w.Used:0.#}% 사용");
+                string window = w!.Minutes >= 1440 ? $"{w.Minutes / 1440d:0.#}일" : w.Minutes >= 60 ? $"{w.Minutes / 60d:0.#}시간" : w.Minutes > 0 ? $"{w.Minutes}분" : "기간 미수신";
+                lines.Add($"{window} 한도 {100 - w.Used:0.#}% 남음");
             }
             lines.Add($"한도 수신 {l.At.ToLocalTime():HH:mm}");
         }
         var s = Sessions.FirstOrDefault(s => s.Provider == provider && (s.Tokens.HasValue || s.Context.HasValue));
         if (s?.Tokens is long tokens) lines.Add($"최근 대화 누적 {tokens:N0} tokens (캐시 포함)");
-        if (s?.Context is double context) lines.Add($"최근 대화 컨텍스트 {context:0.#}%");
-        return lines.Count == 0 ? "사용량 미수신 · 0으로 추정하지 않아요" : string.Join("\n", lines);
+        if (s?.Context is double context) lines.Add($"최근 대화 컨텍스트 {context:0.#}% 사용");
+        if (!limits.ContainsKey(provider)) lines.Insert(0, "남은 한도 미수신 · 추정하지 않아요");
+        return string.Join("\n", lines);
     }
 }
 
