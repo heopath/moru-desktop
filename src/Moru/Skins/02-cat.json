@@ -1,0 +1,5 @@
+{
+  "id": "cat", "name": "소금", "description": "느긋한 고양이", "shape": "cat",
+  "body": "#F6DFC1", "outline": "#634C3B", "accent": "#9A652F",
+  "soft": "#FBF3E8", "cheek": "#EFA99C"
+}

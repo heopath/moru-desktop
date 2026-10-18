@@ -1,0 +1,17 @@
+{
+  "Version": "0.2.0",
+  "Configuration": "Release self-contained win-x64; PNG skin restored; preview exported; 2s panel refresh; diagnostics disabled",
+  "AppDllSha256": "5A77BDC2E54C31118698FFA42BE5CB2DD4CF51624199842B20556B4F4CF73F0B",
+  "Measurement": {
+    "Label": "v0.2-final-png-panel-2s",
+    "StartedAt": "2026-10-18T15:21:20.1958719+09:00",
+    "ProcessId": 38636,
+    "Seconds": 33.29,
+    "LogicalProcessors": 24,
+    "CpuMilliseconds": 1312.5,
+    "CpuPercentOfMachine": 0.1643,
+    "AverageWorkingSetMiB": 197.72,
+    "PeakWorkingSetMiB": 199.46,
+    "AveragePrivateCommitMiB": 130.27
+  }
+}

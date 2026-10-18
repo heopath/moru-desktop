@@ -1,0 +1,5 @@
+{
+  "id": "robot", "name": "루미", "description": "작은 로봇", "shape": "robot",
+  "body": "#D9D7F3", "outline": "#48446B", "accent": "#6E62AC",
+  "soft": "#F1EFF9", "cheek": "#D7ADD0"
+}

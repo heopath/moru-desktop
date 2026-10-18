@@ -1,0 +1,9 @@
+.tools/
+bin/
+obj/
+artifacts/
+*.user
+.vs/
+.runtime-data/
+private-skins/
+publish-local/

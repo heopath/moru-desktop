@@ -1,0 +1,171 @@
+# 모루 — 내 PC 곁의 작은 친구
+
+Windows용 C# / WPF 데스크톱 캐릭터, **v0.2.0 · MIT 오픈소스**.
+캐릭터를 클릭하면 전체 CPU 사용률과 물리 메모리 사용량을 보여 줍니다.
+새싹 **모루**, 고양이 **소금**, 로봇 **루미**를 선택하면 캐릭터와 패널 색상이 함께 바뀝니다.
+투명 PNG 한 장으로 나만의 캐릭터를 추가하고, 현재 적용 화면을 사진으로 저장할 수 있습니다.
+
+![모루의 실제 실행 화면](docs/images/moru-sprout.png)
+
+![루미 스킨 적용 화면](docs/images/moru-robot.png)
+
+사진은 앱의 실제 패널·캐릭터를 내보낸 것입니다. 표시되는 CPU·메모리는 촬영 당시 PC 전체 수치입니다.
+
+## 바로 실행
+
+- [Releases](https://github.com/heopath/moru-desktop/releases)에서 `Moru-win-x64.zip`을 받습니다. **전체 압축을 풀고** 그 안의 `Moru.exe`를 실행합니다.
+- 소스 작업 폴더에서는 빌드 후 `Start-Moru.cmd`를 더블클릭합니다. 로컬 배포 ZIP은 `artifacts/Moru-win-x64.zip`입니다.
+- 포터블 배포본은 .NET 런타임을 포함하므로 별도의 개발 도구 설치가 필요 없습니다. exe만 따로 옮기면 실행되지 않습니다.
+- Windows 10/11 x64용입니다. 관리자 권한, 계정, 서버, 인터넷 연결이 필요하지 않습니다.
+
+## 조작
+
+| 동작 | 결과 |
+| --- | --- |
+| 캐릭터 클릭 / 키보드로 초점 후 Enter | 상태 패널 열기·닫기 |
+| 캐릭터 드래그 | 위치 이동 및 저장 |
+| 캐릭터 우클릭 | 상태 보기, 숨기기, 위치 초기화, 종료 |
+| 상태 패널의 친구 선택 | 스킨 즉시 적용 및 저장 |
+| + PNG 친구 추가 | 내 이미지 선택 → 복사·등록·즉시 적용 |
+| 소개 화면 저장 | 현재 캐릭터와 패널만 담은 PNG 저장 |
+| 갱신 간격 선택 | 2초 / 5초 / 10초 |
+| 패널 × 또는 Esc | 패널 닫기, 측정 정지 |
+| 트레이의 모루 아이콘 클릭 | 숨겨진 캐릭터와 패널 다시 열기 |
+| 패널 또는 우클릭 메뉴의 종료 | 프로세스 완전히 종료 |
+| 캐릭터 창에서 Alt+F4 / 작업 표시줄의 창 닫기 | 프로세스 완전히 종료 |
+
+캐릭터와 열린 패널은 작업 표시줄에서도 찾을 수 있습니다. Windows의 숨겨진 트레이 아이콘 영역에도 모루가 있을 수 있습니다.
+자동 시작은 등록하지 않습니다. 위치·스킨·갱신 간격·항상 위 설정은 `%LocalAppData%/Moru/settings.json`에, 추가한 PNG는 같은 폴더의 `UserSkins`에 저장됩니다.
+사용 기록이나 측정 이력은 저장하지 않습니다.
+
+## 가볍게 동작하는 방법
+
+- WebView, 웹 서버, 외부 패키지, WMI 조회, 프로세스 전체 순회 없이 Windows 기본 API로 두 가지 지표만 읽습니다.
+- CPU는 `GetSystemTimes`의 두 시점 차이, RAM은 `GlobalMemoryStatusEx`로 측정합니다.
+- **패널을 닫거나 숨기면 측정 타이머를 완전히 멈춥니다.** 다시 열면 CPU 기준점을 새로 잡으므로 첫 값까지 한 주기가 필요합니다.
+- 화면 잠금·절전 동안에도 측정을 정지하고, 복귀 시 기준점을 초기화합니다.
+- 캐릭터는 작은 WPF 벡터 그림입니다. 상시 애니메이션, 프레임 루프, 흐림·그림자 효과가 없습니다.
+- 사용자 PNG는 긴 변 최대 320px로 한 번 디코딩하고, 저장한 이미지를 캐릭터와 선택 목록에서 함께 재사용합니다.
+- 브러시와 고정 도형은 동결하여 재사용합니다. 화면은 스킨이나 값이 바뀔 때만 갱신됩니다.
+- 디스크의 포터블 배포 크기는 .NET 런타임을 포함합니다. 실행 중 실제 메모리와는 다른 수치입니다.
+- WPF 자체의 메모리 비용은 있습니다. CPU 0%나 특정 메모리 상한을 모든 PC에서 보장하지 않습니다.
+
+실측 절차와 결과는 [검증 기록](docs/verification.md)에 있습니다.
+최종 v0.2.0의 PNG 캐릭터·2초 갱신 패널 상태를 약 33초 측정한 결과는 평균 CPU **0.164%**, 작업 집합 **198 MiB**였습니다.
+이는 소개 화면을 내보낸 뒤의 이 PC 측정값이며, 모든 환경에서의 보장치가 아닙니다.
+2026-10-18 실제 Windows 환경에서 캐릭터 표시, 클릭으로 패널 열기·닫기, 스킨 3종 변경, 재실행 후 스킨 복원을 확인했습니다.
+v0.2.0 Release 빌드와 핵심 검사 34개도 통과했습니다.
+v0.1.0에서 각각 약 30초씩 두 번 측정했을 때, 캐릭터만 표시하는 실행의 평균 CPU는 0.077~0.119% / 메모리는 165~168 MiB,
+패널을 2초 간격으로 갱신하는 실행은 CPU 0.137~0.357% / 메모리 183~184 MiB였습니다.
+패널을 닫은 뒤 측정에서는 CPU 0.009% / 메모리 179 MiB였으며, 숨긴다고 메모리가 즉시 반환되지는 않습니다.
+CPU는 전체 논리 프로세서 기준이며 메모리는 공유 페이지를 포함한 작업 집합입니다. 짧은 한 환경의 측정값이므로 모든 PC의 상한을 뜻하지 않습니다.
+
+## 다음 개발 방향
+
+[캐릭터 제작 가이드](docs/custom-character-guide.md)에는 PNG 규격과 AI용 프롬프트가 있습니다.
+[추가 요구사항](docs/roadmap.md)의 다음 단계는 Codex 사용량·메인/보조 작업 상태 연동이며, 다른 프로그램의 창 투명도는 후순위 아이디어입니다.
+이 연동·투명도 기능과 애니메이션은 아직 포함되지 않았습니다.
+
+## 지표의 의미와 현재 범위
+
+- CPU는 갱신 간격 동안의 **컴퓨터 전체 평균**이며, 모루 자체의 CPU 사용률이 아닙니다.
+- 메모리는 운영체제가 사용할 수 있는 전체 물리 RAM에서 사용 가능한 RAM을 뺀 값입니다. 화면의 GB는 1024³ 바이트 기준입니다.
+- 작업 관리자는 지표 정의·평균 구간·반올림 방식이 달라 순간 값이 정확히 일치하지 않을 수 있습니다.
+- 여러 프로세서 그룹을 사용하는 PC는 `GetSystemTimes`가 전체 CPU를 대표하지 않으므로 CPU를 지원하지 않는다는 메시지를 표시합니다. RAM은 계속 표시합니다.
+- GPU·온도 센서, 앱별 메모리, 루틴 실행, AI 채팅, 애니메이션은 아직 없습니다.
+
+## 나만의 PNG 캐릭터
+
+1. 배경이 투명한 PNG를 준비합니다. 권장 512×512px, 최대 2048×2048px·8 MiB입니다.
+2. 캐릭터를 클릭하고 **+ PNG 친구 추가**에서 파일을 선택합니다.
+3. 파일 이름을 표시 이름으로 사용하며 즉시 적용합니다. 기본 스킨을 포함해 최대 12개까지 추가할 수 있습니다.
+4. **소개 화면 저장**으로 현재 적용 화면을 PNG로 남깁니다. 다른 프로그램이나 바탕화면은 담지 않습니다.
+
+원본 파일은 수정하지 않습니다. 앱이 만든 작은 복사본이 저장되므로 원본을 옮겨도 유지됩니다.
+이미지는 사용자가 선택한 로컬 파일만 읽으며 외부로 전송하지 않습니다.
+
+## 스킨 수정
+
+실행 파일 옆 `Skins/*.json`을 읽습니다. 모양은 `sprout`, `cat`, `robot` 중 하나이며,
+이름·설명과 6자리 HEX 색상을 수정한 다음 앱을 재시작하면 반영됩니다.
+최대 12개, 파일당 최대 16 KiB입니다. 잘못된 스킨은 건너뛰고, 유효한 스킨이 없으면 내장 새싹으로 복구합니다.
+스킨은 JSON 데이터만 읽으며 XAML·스크립트·실행 파일을 로드하지 않습니다.
+
+```json
+{
+  "id": "my-sprout",
+  "name": "나의 모루",
+  "description": "초록색 새싹 친구",
+  "shape": "sprout",
+  "body": "#BEE7D3",
+  "outline": "#244B40",
+  "accent": "#327B62",
+  "soft": "#EDF6F1",
+  "cheek": "#EEB8A5"
+}
+```
+
+## 빌드와 검증
+
+.NET SDK **10.0.402**와 Windows가 필요합니다. `global.json`에서 버전을 지정합니다.
+이 작업 폴더에는 Microsoft 공식 SDK를 `.tools/dotnet`에 따로 준비했습니다. 전역 PATH나 설치된 SDK는 변경하지 않습니다.
+새 체크아웃에서는 해당 SDK를 설치하거나 같은 위치에 준비하세요.
+
+```powershell
+.\build.ps1 -Check            # Release 빌드 + 핵심 검증
+.\build.ps1 -Check -Portable  # 런타임 포함 배포 폴더와 ZIP 생성
+```
+
+일반 빌드에는 외부 NuGet 라이브러리가 없습니다. 포터블 배포를 처음 만들 때 Microsoft 런타임 팩을 다운로드합니다.
+`.tools`, `bin`, `obj`, `artifacts`는 Git에서 제외합니다.
+개인 스킨과 공개 전 블로그 자료도 Git에서 제외합니다.
+
+CPU 카운터 계산·네이티브 지표·스킨 검증·설정 손상 복구를 검사하는 별도 콘솔 검증 프로그램이 있습니다.
+개발·UI 검증 시 사용자 설정과 분리하려면 다음 인수를 사용할 수 있습니다.
+
+```powershell
+.\artifacts\Moru-win-x64\Moru.exe --data-dir .\artifacts\ui-settings --show-panel
+.\scripts\measure.ps1 -ProcessId <실행중인_PID> -Seconds 30 -Label panel-open
+```
+
+이미지 가져오기와 소개 사진 생성은 다음 실행 옵션으로도 재현할 수 있습니다. 출력 폴더는 미리 만들어 주세요.
+
+```powershell
+.\artifacts\Moru-win-x64\Moru.exe --import-png "C:\MyImages\friend.png" --show-panel
+.\artifacts\Moru-win-x64\Moru.exe --data-dir .\artifacts\demo --export-preview .\artifacts\moru-preview.png --exit-after-export
+```
+
+같은 데이터 폴더를 사용하는 앱이 이미 실행 중이면 종료한 뒤 실행합니다. 가져오기 옵션은 실행할 때마다 새 친구를 추가합니다.
+화면 내보내기 옵션은 패널을 연 뒤 3초 후 PNG를 저장합니다. `--exit-after-export`를 붙이면 저장 후 종료합니다.
+
+창 표시 문제를 조사할 때만 `--diagnostics`를 추가하면 데이터 폴더에 `diagnostics.log`가 생성됩니다.
+시작·창 표시·스킨 선택·측정 시작/정지 이벤트만 기록하며, 일반 실행에는 로그를 쓰지 않습니다.
+성능 측정은 진단 옵션을 빼고 수행합니다.
+
+## 코드 구조
+
+- `App.xaml.cs`: 앱 수명, 트레이, 설정, 단일 실행, 잠금·절전 처리
+- `PetWindow`: 캐릭터 클릭·이동·메뉴
+- `PetView`: 직접 작성한 벡터 캐릭터 3종
+- `StatusWindow`: 지표·스킨·설정 패널, 보일 때만 동작하는 타이머
+- `SystemMetrics`, `Models`: 네이티브 지표 및 CPU 계산
+- `SkinCatalog`, `SettingsStore`: 검증된 데이터 로드와 로컬 설정 저장
+- `PngSkinImage`, `UserSkinStore`: 제한된 PNG 로드와 사용자 스킨 저장
+- `PreviewExporter`: 앱 화면만 PNG로 내보내기
+- `WindowPlacement`: 물리 픽셀 좌표 저장, 모니터 작업 영역 안으로 위치 복구
+
+서버나 별도의 백엔드 없이 동작합니다.
+
+## 라이선스
+
+소스 코드와 기본 캐릭터 3종은 [MIT](LICENSE)로 공개합니다. [구성요소·이미지 권리 안내](THIRD-PARTY-NOTICES.md)를 참고하세요.
+사용자가 가져온 이미지에는 원래 권리가 유지됩니다. 치이카와 등 제3자 캐릭터 스킨은 배포본에 포함하지 않습니다.
+
+## 참고한 공식 문서
+
+- [WPF](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/overview/)
+- [GetSystemTimes](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getsystemtimes)
+- [GlobalMemoryStatusEx](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex)
+- 기획 참고: [VPet](https://github.com/LorisYounger/VPet), [Rainmeter](https://github.com/rainmeter/rainmeter)
+
+캐릭터 그림과 앱 코드는 이 프로젝트를 위해 작성했으며, 참고 프로젝트의 코드·캐릭터 에셋을 복사하지 않았습니다.

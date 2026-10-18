@@ -1,0 +1,5 @@
+{
+  "id": "sprout", "name": "모루", "description": "새싹 친구", "shape": "sprout",
+  "body": "#BEE7D3", "outline": "#244B40", "accent": "#327B62",
+  "soft": "#EDF6F1", "cheek": "#EEB8A5"
+}

@@ -1,0 +1,82 @@
+{
+  "Date": "2026-10-18",
+  "Cpu": "AMD Ryzen AI 9 HX 370",
+  "WindowsBuild": "26300.9711",
+  "Configuration": "Release, self-contained win-x64, diagnostics disabled",
+  "AppDllSha256": "8DD77EB55A25D34138AAF297A2ABDBD8DC2D637C90BD49E47ABECBD90575BDB6",
+  "MemoryUnit": "MiB (1048576 bytes); working set includes shared pages; private commit is not resident RAM",
+  "Measurements": [
+    {
+      "Label": "character-only",
+      "StartedAt": "2026-10-18T14:55:24.4802914+09:00",
+      "ProcessId": 7224,
+      "Seconds": 30.6,
+      "LogicalProcessors": 24,
+      "CpuMilliseconds": 562.5,
+      "CpuPercentOfMachine": 0.0766,
+      "AverageWorkingSetMiB": 165.19,
+      "PeakWorkingSetMiB": 165.5,
+      "AveragePrivateCommitMiB": 98.89
+    },
+    {
+      "Label": "panel-open-2s",
+      "StartedAt": "2026-10-18T14:56:14.5838477+09:00",
+      "ProcessId": 7224,
+      "Seconds": 30.53,
+      "LogicalProcessors": 24,
+      "CpuMilliseconds": 1000.0,
+      "CpuPercentOfMachine": 0.1365,
+      "AverageWorkingSetMiB": 184.41,
+      "PeakWorkingSetMiB": 187.29,
+      "AveragePrivateCommitMiB": 114.43
+    },
+    {
+      "Label": "panel-closed",
+      "StartedAt": "2026-10-18T14:56:58.7331081+09:00",
+      "ProcessId": 7224,
+      "Seconds": 30.53,
+      "LogicalProcessors": 24,
+      "CpuMilliseconds": 62.5,
+      "CpuPercentOfMachine": 0.0085,
+      "AverageWorkingSetMiB": 178.77,
+      "PeakWorkingSetMiB": 180.65,
+      "AveragePrivateCommitMiB": 111.0
+    },
+    {
+      "Label": "all-hidden",
+      "StartedAt": "2026-10-18T14:58:38.6097673+09:00",
+      "ProcessId": 7224,
+      "Seconds": 30.51,
+      "LogicalProcessors": 24,
+      "CpuMilliseconds": 0.0,
+      "CpuPercentOfMachine": 0.0,
+      "AverageWorkingSetMiB": 227.3,
+      "PeakWorkingSetMiB": 232.88,
+      "AveragePrivateCommitMiB": 116.01
+    },
+    {
+      "Label": "clean-character-only",
+      "StartedAt": "2026-10-18T15:00:08.893362+09:00",
+      "ProcessId": 40080,
+      "Seconds": 30.59,
+      "LogicalProcessors": 24,
+      "CpuMilliseconds": 875.0,
+      "CpuPercentOfMachine": 0.1192,
+      "AverageWorkingSetMiB": 167.62,
+      "PeakWorkingSetMiB": 168.65,
+      "AveragePrivateCommitMiB": 100.42
+    },
+    {
+      "Label": "clean-panel-open-2s",
+      "StartedAt": "2026-10-18T15:02:15.194845+09:00",
+      "ProcessId": 38352,
+      "Seconds": 31.05,
+      "LogicalProcessors": 24,
+      "CpuMilliseconds": 2656.25,
+      "CpuPercentOfMachine": 0.3565,
+      "AverageWorkingSetMiB": 182.76,
+      "PeakWorkingSetMiB": 187.97,
+      "AveragePrivateCommitMiB": 113.08
+    }
+  ]
+}
