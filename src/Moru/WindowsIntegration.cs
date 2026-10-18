@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Text;
 using Microsoft.Win32;
 
 namespace Moru;
@@ -46,27 +48,67 @@ internal static class WindowsIntegration
         if (!File.Exists(executable) || string.IsNullOrWhiteSpace(desktop) || !Directory.Exists(desktop))
             throw new IOException("실행 파일 또는 바탕화면 폴더를 찾지 못했어요.");
         string path = Path.Combine(desktop, "모루 실행.lnk");
-        object? shell = null, shortcut = null;
+        object linkObject = new ShellLink();
         try
         {
-            shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell", throwOnError: true)!);
-            shortcut = ((dynamic)shell!).CreateShortcut(path);
-            dynamic link = shortcut;
-            if (File.Exists(path) && !string.Equals(Path.GetFileName((string)link.TargetPath), "Moru.exe", StringComparison.OrdinalIgnoreCase))
+            var link = (IShellLinkW)linkObject;
+            if (File.Exists(path) && !string.Equals(Path.GetFileName(ReadShortcut(path).Target), "Moru.exe", StringComparison.OrdinalIgnoreCase))
                 throw new IOException("같은 이름의 다른 바로가기가 있어요. 이름을 바꾼 뒤 다시 만들어 주세요.");
-            link.TargetPath = executable;
-            link.Arguments = "--show-panel";
-            link.WorkingDirectory = Path.GetDirectoryName(executable)!;
-            link.IconLocation = executable + ",0";
-            link.Description = "모루 · 바탕화면 친구, PC 상태와 알람";
-            link.WindowStyle = 1;
-            link.Save();
+            link.SetPath(executable);
+            link.SetArguments("--show-panel");
+            link.SetWorkingDirectory(Path.GetDirectoryName(executable)!);
+            link.SetIconLocation(executable, 0);
+            link.SetDescription("모루 · 바탕화면 친구, PC 상태와 알람");
+            link.SetShowCmd(1);
+            ((IPersistFile)linkObject).Save(path, true);
             return path;
         }
-        finally
+        finally { Marshal.FinalReleaseComObject(linkObject); }
+    }
+
+    internal static (string Target, string Arguments, string WorkingDirectory) ReadShortcut(string path)
+    {
+        object linkObject = new ShellLink();
+        try
         {
-            if (shortcut is not null && Marshal.IsComObject(shortcut)) Marshal.FinalReleaseComObject(shortcut);
-            if (shell is not null && Marshal.IsComObject(shell)) Marshal.FinalReleaseComObject(shell);
+            ((IPersistFile)linkObject).Load(path, 0);
+            var link = (IShellLinkW)linkObject;
+            var target = new StringBuilder(32768);
+            var arguments = new StringBuilder(32768);
+            var directory = new StringBuilder(32768);
+            link.GetPath(target, target.Capacity, IntPtr.Zero, 4);
+            link.GetArguments(arguments, arguments.Capacity);
+            link.GetWorkingDirectory(directory, directory.Capacity);
+            return (target.ToString(), arguments.ToString(), directory.ToString());
         }
+        finally { Marshal.FinalReleaseComObject(linkObject); }
+    }
+
+    // Unicode shell links avoid WScript.Shell's locale-dependent path conversion.
+    // https://learn.microsoft.com/windows/win32/shell/links
+    [ComImport, Guid("00021401-0000-0000-C000-000000000046")]
+    private class ShellLink { }
+
+    [ComImport, Guid("000214F9-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IShellLinkW
+    {
+        void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int count, IntPtr findData, uint flags);
+        void GetIDList(out IntPtr pidl);
+        void SetIDList(IntPtr pidl);
+        void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder description, int count);
+        void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string description);
+        void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder directory, int count);
+        void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string directory);
+        void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder arguments, int count);
+        void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string arguments);
+        void GetHotkey(out short hotkey);
+        void SetHotkey(short hotkey);
+        void GetShowCmd(out int command);
+        void SetShowCmd(int command);
+        void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int count, out int index);
+        void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string path, int index);
+        void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string path, uint reserved);
+        void Resolve(IntPtr window, uint flags);
+        void SetPath([MarshalAs(UnmanagedType.LPWStr)] string path);
     }
 }

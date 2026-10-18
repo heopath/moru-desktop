@@ -1,6 +1,5 @@
 using Moru;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -48,7 +47,7 @@ internal static class StateSkinChecks
         var settings = new SettingsStore(Path.Combine(root, "preferences"));
         settings.Save(new Preferences { DesktopShortcutCreated = true });
         check("First-launch shortcut marker survives restart", !new Preferences().DesktopShortcutCreated && settings.Load().DesktopShortcutCreated);
-        string spacedExe = Path.Combine(root, "space folder", "Moru.exe");
+        string spacedExe = Path.Combine(root, "한글 space folder", "Moru.exe");
         check("Startup command quotes spaced paths and opens pet quietly", WindowsIntegration.StartupCommand(spacedExe) == "\"" + spacedExe + "\" --startup");
         rejected = false;
         try { WindowsIntegration.StartupCommand("relative.exe"); } catch (ArgumentException) { rejected = true; }
@@ -61,14 +60,10 @@ internal static class StateSkinChecks
         Directory.CreateDirectory(Path.GetDirectoryName(spacedExe)!);
         File.WriteAllText(spacedExe, "test fixture, never executed");
         string shortcut = WindowsIntegration.CreateDesktopShortcut(spacedExe, root);
-        object shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell", true)!)!;
-        object link = ((dynamic)shell).CreateShortcut(shortcut);
-        try
-        {
-            check("Desktop shortcut has executable, arguments and working directory", (string)((dynamic)link).TargetPath == spacedExe
-                && (string)((dynamic)link).Arguments == "--show-panel"
-                && (string)((dynamic)link).WorkingDirectory == Path.GetDirectoryName(spacedExe));
-        }
-        finally { Marshal.FinalReleaseComObject(link); Marshal.FinalReleaseComObject(shell); }
+        var link = WindowsIntegration.ReadShortcut(shortcut);
+        check("Unicode desktop shortcut preserves executable, arguments and working directory", link.Target == spacedExe
+            && link.Arguments == "--show-panel" && link.WorkingDirectory == Path.GetDirectoryName(spacedExe));
+        WindowsIntegration.CreateDesktopShortcut(spacedExe, root);
+        check("Existing Moru shortcut can be safely recreated", File.Exists(shortcut) && WindowsIntegration.ReadShortcut(shortcut) == link);
     }
 }
