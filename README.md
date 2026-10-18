@@ -7,9 +7,11 @@ Windows용 C# / WPF 데스크톱 캐릭터, **v0.7.1 · MIT 오픈소스**.
 **쉬는 중·작업 중·완료·확인 대기·오류**마다 다른 PNG를 지정할 수 있습니다. 없는 상태는 기본 이미지를 사용합니다.
 캐릭터가 대기·작업·완료 상태에 맞춰 움직입니다. **Codex / Claude Code**를 연결하면 작업 상태와 도구가 제공하는 사용량도 볼 수 있습니다.
 
-![우사기 개인 스킨의 다섯 상태 · 실제 앱 동작](docs/images/moru-usagi-motion.gif)
+![새 우사기 개인 스킨을 적용한 실제 모루 화면](docs/images/moru-usagi-demo.png)
 
-우사기는 AI로 제작해 개인 스킨으로 적용한 예시입니다. 원본 스킨은 기본 제공하지 않으며, 캐릭터 부분에는 모루의 MIT 라이선스가 적용되지 않습니다. [이미지 권리 안내](THIRD-PARTY-NOTICES.md)
+![새 우사기 개인 스킨의 다섯 상태 · 실제 앱 동작](docs/images/moru-usagi-motion.gif)
+
+2026-10-18 우사기 예시를 새 스킨으로 교체했습니다. 기본 모습은 [공식 애니메이션 사이트](https://www.anime-chiikawa.jp/chara.html)의 투명 원본 이미지이며, 작업·완료·확인 대기·오류 모습은 이 원본을 기준으로 AI 편집했습니다. 기존 움직임은 유지했습니다. 스킨은 개인 적용 예시로 기본 제공하지 않으며, 캐릭터 부분에는 모루의 MIT 라이선스가 적용되지 않습니다. [이미지 권리 안내](THIRD-PARTY-NOTICES.md)
 
 **캐릭터에 마우스를 올리면 다음 알람까지 남은 시간**을 보여 줍니다. 10분·15분 타이머에 **반복**을 켜면 같은 간격으로 계속 알려 줍니다.
 
@@ -167,8 +169,6 @@ Codex는 **로컬 기록 형식에 의존하는 실험적 관찰 기능**입니�
 
 권장 이미지와 상태별 AI 프롬프트는 [사용자 캐릭터 제작 가이드](docs/custom-character-guide.md)에 있습니다.
 
-![상태별 모습에서 작업 중 PNG 지정](docs/images/moru-state-skins.jpg)
-
 원본 파일은 수정하지 않습니다. 앱이 만든 작은 복사본이 저장되므로 원본을 옮겨도 유지됩니다.
 이미지는 사용자가 선택한 로컬 파일만 읽으며 외부로 전송하지 않습니다.
 
@@ -268,4 +268,4 @@ CPU 카운터 계산·네이티브 지표·스킨 검증·설정 손상 복구�
 - [GlobalMemoryStatusEx](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-globalmemorystatusex)
 - 기획 참고: [VPet](https://github.com/LorisYounger/VPet), [Rainmeter](https://github.com/rainmeter/rainmeter)
 
-캐릭터 그림과 앱 코드는 이 프로젝트를 위해 작성했으며, 참고 프로젝트의 코드·캐릭터 에셋을 복사하지 않았습니다.
+기본 캐릭터 3종과 앱 코드는 이 프로젝트를 위해 작성했으며, 참고 프로젝트의 코드·캐릭터 에셋을 복사하지 않았습니다. 사용자 스킨 적용 예시에 쓰인 제3자 이미지는 [이미지 권리 안내](THIRD-PARTY-NOTICES.md)에 별도로 표시했습니다.
