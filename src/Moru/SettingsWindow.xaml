@@ -54,18 +54,31 @@
    </StackPanel></ScrollViewer></TabItem>
    <TabItem Header="알람"><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="0,8,12,0">
     <Border Style="{StaticResource Card}"><StackPanel>
-     <TextBlock Text="잠깐 쉬어 가기" FontWeight="SemiBold"/>
-     <UniformGrid Columns="3" Margin="0,12,0,16"><Button Content="5분 후" Tag="5" Click="OnQuickAlarm" Margin="0,0,5,0"/><Button Content="25분 후" Tag="25" Click="OnQuickAlarm" Margin="0,0,5,0"/><Button Content="60분 후" Tag="60" Click="OnQuickAlarm"/></UniformGrid>
-     <TextBlock Text="원하는 시간에 알림" FontWeight="SemiBold" Margin="0,0,0,10"/>
+     <TextBlock Text="몇 분 뒤 알림" FontWeight="SemiBold"/>
+     <UniformGrid Columns="3" Margin="0,12,0,8">
+      <Button Content="5분" Tag="5" Click="OnQuickAlarm" Margin="0,0,5,6"/><Button Content="10분" Tag="10" Click="OnQuickAlarm" Margin="0,0,5,6"/><Button Content="15분" Tag="15" Click="OnQuickAlarm" Margin="0,0,0,6"/>
+      <Button Content="25분" Tag="25" Click="OnQuickAlarm" Margin="0,0,5,0"/><Button Content="30분" Tag="30" Click="OnQuickAlarm" Margin="0,0,5,0"/><Button Content="60분" Tag="60" Click="OnQuickAlarm"/>
+     </UniformGrid>
+     <Grid Margin="0,6,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBox x:Name="TimerMinutes" Text="15" MaxLength="4" AutomationProperties.Name="타이머 시간(분)" VerticalContentAlignment="Center"/>
+      <TextBlock Grid.Column="1" Text="분 후" VerticalAlignment="Center" Margin="10,0,0,0"/>
+      <Button Grid.Column="2" Content="시작" Click="OnStartTimer" Padding="22,10" AutomationProperties.Name="입력한 분 타이머 시작"/>
+     </Grid>
+     <TextBlock Text="버튼을 누르면 바로 시작 · 직접 입력은 1~1440분" Style="{StaticResource Caption}" Margin="0,10,0,0"/>
+    </StackPanel></Border>
+    <Grid Margin="0,12,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+     <CheckBox x:Name="AlarmSoundToggle" Content="알람 소리" Checked="OnAlarmSound" Unchecked="OnAlarmSound" VerticalAlignment="Center"/>
+     <Button Grid.Column="1" Content="소리 미리듣기" Click="OnPreviewSound"/>
+    </Grid>
+    <TextBlock x:Name="AlarmNotice" Style="{StaticResource Caption}" Margin="0,2,0,12"/>
+    <Expander Header="날짜·시간 지정" FontSize="{DynamicResource BodySize}" Foreground="{DynamicResource Ink}" Margin="0,0,0,14"><Border Style="{StaticResource Card}" Margin="0,10,0,0"><StackPanel>
      <TextBox x:Name="AlarmTitle" MaxLength="40" Text="잠깐 쉬어 가요" AutomationProperties.Name="알람 이름"/>
      <Grid Margin="0,10,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="100"/></Grid.ColumnDefinitions>
       <DatePicker x:Name="AlarmDate" CalendarStyle="{StaticResource AppCalendar}" FontSize="{DynamicResource BodySize}" Foreground="{DynamicResource Ink}" Background="{DynamicResource Surface}" AutomationProperties.Name="알람 날짜" VerticalContentAlignment="Center" Margin="0,0,10,0"/>
       <TextBox x:Name="AlarmTime" Grid.Column="1" MaxLength="5" AutomationProperties.Name="알람 시간" ToolTip="24시간 형식 · 14:30"/>
      </Grid>
      <Button Content="알람 추가" Click="OnAddAlarm"/>
-     <TextBlock x:Name="AlarmNotice" Style="{StaticResource Caption}" Margin="0,10,0,0"/>
-    </StackPanel></Border>
-    <CheckBox x:Name="AlarmSoundToggle" Content="알람 소리" Checked="OnAlarmSound" Unchecked="OnAlarmSound" Margin="0,14,0,8"/>
+    </StackPanel></Border></Expander>
     <TextBlock Text="모루 실행 중에만 알림 · 절전 중에는 깨우지 않아요." Style="{StaticResource Caption}" Margin="0,0,0,16"/>
     <ItemsControl x:Name="AlarmList"><ItemsControl.ItemTemplate><DataTemplate><Border Style="{StaticResource Card}" Margin="0,0,0,8" Padding="14"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions>
      <StackPanel><TextBlock Text="{Binding Title}" TextWrapping="Wrap" FontWeight="SemiBold"/><TextBlock Text="{Binding When}" Style="{StaticResource Caption}" Margin="0,5,0,0"/></StackPanel>

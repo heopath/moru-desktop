@@ -17,6 +17,14 @@ internal static class UtilityChecks
         check("Invalid clock rejected", !ReminderRules.TryCreate(DateTime.Today.AddDays(1), "25:90", "a", DateTimeOffset.Now, out _));
         check("Past clock rejected", !ReminderRules.TryCreate(DateTime.Today.AddDays(-1), "12:00", "a", DateTimeOffset.Now, out _));
         check("Missing date rejected", !ReminderRules.TryCreate(null, "12:00", "a", DateTimeOffset.Now, out _));
+        check("Ten-minute timer keeps seconds", ReminderRules.TryCreateAfter("10", now.AddSeconds(23), out var ten) && ten!.DueAt == now.AddMinutes(10).AddSeconds(23) && ten.Title == "10분 타이머");
+        check("Fifteen-minute timer crosses midnight", ReminderRules.TryCreateAfter("15", now.Date.AddDays(1).AddMinutes(-5), out var fifteen) && fifteen!.DueAt.Minute == 10 && fifteen.DueAt.Hour == 0);
+        check("Custom minute timer accepts one and 1440", ReminderRules.TryCreateAfter("1", now, out _) && ReminderRules.TryCreateAfter("1440", now, out var day) && day!.DueAt == now.AddDays(1));
+        check("Invalid duration input rejected", new[] { "", "0", "-1", "1.5", "1e2", "15분", "1441", "999999999999" }.All(s => !ReminderRules.TryCreateAfter(s, now, out _)));
+        check("Timer never fires before its due instant", ReminderRules.Due(new[] { ten! }, ten!.DueAt.AddMilliseconds(-1)).Length == 0 && ReminderRules.Due(new[] { ten }, ten.DueAt).Length == 1);
+        var tone = AlarmTone.CreateWave();
+        check("Alarm chime is bounded 2-second mono PCM", System.Text.Encoding.ASCII.GetString(tone, 0, 4) == "RIFF" && BitConverter.ToInt32(tone, 24) == 22050 && BitConverter.ToInt16(tone, 22) == 1 && BitConverter.ToInt16(tone, 34) == 16 && tone.Length == 88244 && BitConverter.ToInt32(tone, 40) == 88200);
+        check("Alarm chime contains signal and ends silently", tone.Skip(44).Any(b => b != 0) && tone.TakeLast(1000).All(b => b == 0));
         check("Future clock is parsed and empty titles get a default", ReminderRules.TryCreate(DateTime.Today.AddDays(1), "12:30", " ", DateTimeOffset.Now, out var created) && created!.Title == "잠깐 쉬어 가요");
         var prefs = new Preferences { DarkMode = true, TextSize = 20, HoverEnabled = false, AlarmSound = false, Reminders = new[] { future } };
         var store = new SettingsStore(Path.Combine(scratch, "utilities"));

@@ -25,6 +25,7 @@ public partial class App : Application
     private SettingsWindow? settingsPanel;
     private AlarmWindow? alarmPanel;
     private ReminderService? reminders;
+    private readonly AlarmTone alarmTone = new();
     private Forms.NotifyIcon? tray;
     private Icon? trayIcon;
     private Forms.ToolStripMenuItem? visibilityItem;
@@ -91,11 +92,13 @@ public partial class App : Application
         if (e.Args.Contains("--enable-claude")) ChangeClaude(true);
         if (e.Args.Contains("--show-ai")) Dispatcher.BeginInvoke(ShowAi);
         if (e.Args.Contains("--show-settings")) Dispatcher.BeginInvoke(() => ShowSettings());
+        if (e.Args.Contains("--show-alarms")) Dispatcher.BeginInvoke(() => ShowSettings(3));
         DiagnosticLog.Window("Pet shown", pet);
         string? importPath = Option(e.Args, "--import-png");
         string? previewPath = Option(e.Args, "--export-preview");
         string? motionPath = Option(e.Args, "--export-motion");
         string? aiPreviewPath = Option(e.Args, "--export-ai-preview");
+        string? alarmsPreviewPath = Option(e.Args, "--export-alarms-preview");
         if (importPath is not null)
         {
             try { ImportSkin(Path.GetFullPath(importPath)); }
@@ -117,6 +120,20 @@ public partial class App : Application
                 try { PreviewExporter.Save(aiPreviewPath, aiPanel!, pet, CurrentSkin, true); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
                 { MessageBox.Show("AI 소개 화면을 저장하지 못했어요.", "모루"); }
+                if (e.Args.Contains("--exit-after-export")) ExitApp();
+            };
+            capture.Start();
+        });
+        if (alarmsPreviewPath is not null) Dispatcher.BeginInvoke(() =>
+        {
+            ShowSettings(3);
+            var capture = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            capture.Tick += (_, _) =>
+            {
+                capture.Stop();
+                try { PreviewExporter.Save(alarmsPreviewPath, settingsPanel!, pet, CurrentSkin, description: "실제 앱 화면 · 분 단위 타이머와 알람 설정"); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+                { MessageBox.Show("알람 소개 화면을 저장하지 못했어요.", "모루"); }
                 if (e.Args.Contains("--exit-after-export")) ExitApp();
             };
             capture.Start();
@@ -232,7 +249,9 @@ public partial class App : Application
         Theme.Apply(this, Preferences, CurrentSkin); panel?.ApplyPreferences(); Save();
     }
     internal void ChangeHover(bool enabled) { Preferences = Preferences with { HoverEnabled = enabled }; pet.ApplyPreferences(); Save(); }
-    internal void ChangeAlarmSound(bool enabled) { Preferences = Preferences with { AlarmSound = enabled }; Save(); }
+    internal void ChangeAlarmSound(bool enabled) { Preferences = Preferences with { AlarmSound = enabled }; if (!enabled) StopAlarmSound(); Save(); }
+    internal bool PlayAlarmSound() => alarmTone.Play();
+    internal void StopAlarmSound() => alarmTone.Stop();
     internal bool AddReminder(Reminder reminder)
     {
         if (Preferences.Reminders.Count >= 8) return false;
@@ -251,7 +270,7 @@ public partial class App : Application
         Save(); settingsPanel?.RefreshAlarms(); panel?.RefreshClock();
         alarmPanel ??= new AlarmWindow(this) { Owner = pet, Icon = pet.Icon };
         alarmPanel.Deliver(due); WindowPlacement.Beside(alarmPanel, pet);
-        if (Preferences.AlarmSound) System.Media.SystemSounds.Asterisk.Play();
+        if (Preferences.AlarmSound) PlayAlarmSound();
     }
     internal void ChangeAnimation(bool enabled)
     {
@@ -358,6 +377,7 @@ public partial class App : Application
         Exiting = true;
         Ai?.Dispose();
         reminders?.Dispose();
+        alarmTone.Dispose();
         SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
         SystemEvents.PowerModeChanged -= OnPowerChanged;
         SystemEvents.SessionSwitch -= OnSessionChanged;

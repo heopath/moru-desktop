@@ -89,8 +89,19 @@ public partial class SettingsWindow : Window
     private void OnAlarmSound(object sender, RoutedEventArgs e) { if (ready) host.ChangeAlarmSound(AlarmSoundToggle.IsChecked == true); }
     private void OnQuickAlarm(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string minutes }) Add(new(Guid.NewGuid(), "잠깐 쉬어 가요", DateTimeOffset.Now.AddMinutes(int.Parse(minutes))));
+        if (sender is Button { Tag: string minutes }) StartTimer(minutes);
     }
+    private void OnStartTimer(object sender, RoutedEventArgs e) => StartTimer(TimerMinutes.Text);
+    private void StartTimer(string minutes)
+    {
+        if (!ReminderRules.TryCreateAfter(minutes, DateTimeOffset.Now, out var reminder))
+        { AlarmNotice.Text = "1~1440 사이의 정수(분)를 입력해 주세요."; return; }
+        if (host.AddReminder(reminder!))
+            AlarmNotice.Text = $"{reminder!.Title} 시작 · {reminder.DueAt.ToLocalTime():HH:mm}에 알림" + (host.Preferences.AlarmSound ? "" : " · 소리 꺼짐");
+        else AlarmNotice.Text = "알람은 최대 8개예요. 기존 알람을 정리해 주세요.";
+    }
+    private void OnPreviewSound(object sender, RoutedEventArgs e) => AlarmNotice.Text =
+        host.PlayAlarmSound() ? "미리듣기 재생 · 소리가 작으면 Windows 음량을 확인해 주세요." : "소리를 재생하지 못했어요. 출력 장치를 확인해 주세요.";
     private void OnAddAlarm(object sender, RoutedEventArgs e)
     {
         if (!ReminderRules.TryCreate(AlarmDate.SelectedDate, AlarmTime.Text, AlarmTitle.Text, DateTimeOffset.Now, out var reminder))

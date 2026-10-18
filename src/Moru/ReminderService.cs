@@ -13,6 +13,14 @@ internal sealed record Reminder(Guid Id, string Title, DateTimeOffset DueAt)
 
 internal static class ReminderRules
 {
+    internal static bool TryCreateAfter(string minutes, DateTimeOffset now, out Reminder? reminder)
+    {
+        reminder = null;
+        if (!int.TryParse(minutes.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out int value) || value is < 1 or > 1440) return false;
+        reminder = new(Guid.NewGuid(), $"{value}분 타이머", now.AddMinutes(value));
+        return true;
+    }
+
     internal static Reminder[] Due(IEnumerable<Reminder> reminders, DateTimeOffset now) =>
         reminders.Where(r => r.DueAt <= now).OrderBy(r => r.DueAt).ToArray();
 
