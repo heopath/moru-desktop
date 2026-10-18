@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Windows.Media.Imaging;
 
@@ -8,6 +9,36 @@ namespace Moru;
 
 internal sealed class UserSkinStore(string directory)
 {
+    internal void Delete(Skin skin)
+    {
+        if (!skin.IsCustom || !System.Text.RegularExpressions.Regex.IsMatch(skin.Id, "^user-[a-f0-9]{32}$"))
+            throw new InvalidDataException("내가 추가한 PNG 친구만 삭제할 수 있어요.");
+        string manifest = Path.Combine(directory, skin.Id + ".json");
+        // Only app-owned copies are candidates. Never follow ImageFile paths supplied in a manifest.
+        var owned = Directory.EnumerateFiles(directory, skin.Id + "*.png").Where(path =>
+            System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(path),
+                "^" + skin.Id + "(?:-(?:Idle|Working|Done|Waiting|Error)-[a-f0-9]{32})?\\.png$")).ToArray();
+        var referenced = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        bool canClean = true;
+        foreach (string other in Directory.EnumerateFiles(directory, "*.json").Where(p => p != manifest))
+        {
+            try
+            {
+                if (new FileInfo(other).Length > 16384) { canClean = false; break; }
+                var definition = JsonSerializer.Deserialize<SkinDefinition>(File.ReadAllText(other),
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (definition?.ImageFile is { } file) referenced.Add(file);
+                if (definition?.StateImages is { } states)
+                    foreach (var fileName in states.Values) referenced.Add(fileName);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            { canClean = false; break; }
+        }
+        File.Delete(manifest); // Commit removal before best-effort cleanup. Failure leaves the pet intact.
+        if (canClean)
+            foreach (string path in owned.Where(p => !referenced.Contains(Path.GetFileName(p)))) TryDelete(path);
+    }
+
     internal Skin SetStateImage(Skin skin, PetActivity state, string? source)
     {
         if (!skin.IsCustom || !System.Text.RegularExpressions.Regex.IsMatch(skin.Id, "^user-[a-f0-9]{32}$")

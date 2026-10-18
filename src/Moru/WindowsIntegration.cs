@@ -11,6 +11,37 @@ internal static class WindowsIntegration
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string EntryName = "Moru";
+    internal static int InstallIntegrations(bool uninstall)
+    {
+        string executable = Path.Combine(AppContext.BaseDirectory, "Moru.exe");
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
+            string? command = key?.GetValue(EntryName) as string;
+            if (uninstall)
+            {
+                if (command is not null && ClaudeBridge.CommandUsesExecutable(command, executable)) key!.DeleteValue(EntryName, false);
+                string claude = Path.Combine(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR")
+                    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude"), "settings.json");
+                ClaudeBridge.Configure(claude, executable, "", enable: false, onlyThisExecutable: true);
+            }
+            else
+            {
+                // Preserve an existing user opt-in while moving from portable to installed.
+                // A fresh installation never adds an autostart entry.
+                if (command is not null && command.StartsWith("\"", StringComparison.Ordinal)
+                    && command.EndsWith("Moru.exe\" --startup", StringComparison.OrdinalIgnoreCase))
+                    SetStartup(true, executable);
+                CreateDesktopShortcut(executable, Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory));
+                var settings = new SettingsStore(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Moru"));
+                if (!settings.Save(settings.Load() with { DesktopShortcutCreated = true })) return 1;
+            }
+            return 0;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException
+            or COMException or System.Security.SecurityException or NotSupportedException or System.Text.Json.JsonException)
+        { return 1; }
+    }
 
     // Registry is the source of truth; loading preferences never enables startup.
     internal static bool StartupEnabled()

@@ -17,6 +17,8 @@ public partial class App : Application
 {
     private Mutex? instance;
     private bool ownsMutex;
+    private Mutex? installerMutex;
+    private IReadOnlyList<Skin> allSkins = Array.Empty<Skin>();
     private SettingsStore store = null!;
     private UserSkinStore userSkins = null!;
     private PetWindow pet = null!;
@@ -71,6 +73,7 @@ public partial class App : Application
             Shutdown();
             return;
         }
+        if (IntegrationEnabled) installerMutex = new Mutex(false, @"Local\Moru.DesktopCompanion.Install");
         store = new SettingsStore(directory);
         string userSkinDirectory = Path.Combine(directory, "UserSkins");
         userSkins = new UserSkinStore(userSkinDirectory);
@@ -84,9 +87,10 @@ public partial class App : Application
             { DiagnosticLog.Write("Desktop shortcut unavailable: " + ex.GetType().Name); }
         }
         Ai = new AiMonitor(Dispatcher, suffix);
-        Skins = SkinCatalog.Load(Path.Combine(AppContext.BaseDirectory, "Skins"))
+        allSkins = SkinCatalog.Load(Path.Combine(AppContext.BaseDirectory, "Skins"))
             .Concat(SkinCatalog.Load(userSkinDirectory, includeFallback: false, isCustom: true))
             .GroupBy(s => s.Id).Select(group => group.First()).Take(12).ToArray();
+        Skins = SkinNamesPolicy.Visible(allSkins, Preferences);
         CurrentSkin = Skins.FirstOrDefault(s => s.Id == Preferences.SkinId) ?? Skins[0];
         Theme.Apply(this, Preferences, CurrentSkin);
         DiagnosticLog.Write("Create pet window");
@@ -261,17 +265,57 @@ public partial class App : Application
     }
     internal void ImportSkin(string path)
     {
-        if (Skins.Count >= 12) throw new InvalidDataException("친구는 기본 스킨을 포함해 최대 12명까지 추가할 수 있어요.");
+        if (allSkins.Count >= 12) throw new InvalidDataException("친구는 숨긴 기본 스킨을 포함해 최대 12명까지 추가할 수 있어요. 추가한 PNG를 삭제하면 자리가 생겨요.");
         var skin = userSkins.Import(path);
-        Skins = Skins.Append(skin).ToArray();
+        allSkins = allSkins.Append(skin).ToArray();
+        Skins = SkinNamesPolicy.Visible(allSkins, Preferences);
         ChangeSkin(skin);
         settingsPanel?.ReloadSkins();
     }
     internal void SetStateImage(PetActivity state, string? source)
     {
-        var updated = userSkins.SetStateImage(CurrentSkin, state, source);
-        Skins = Skins.Select(s => s.Id == updated.Id ? updated : s).ToArray();
-        ChangeSkin(updated);
+        var updated = userSkins.SetStateImage(allSkins.Single(s => s.Id == CurrentSkin.Id), state, source);
+        allSkins = allSkins.Select(s => s.Id == updated.Id ? updated : s).ToArray();
+        Skins = SkinNamesPolicy.Visible(allSkins, Preferences);
+        ChangeSkin(Skins.Single(s => s.Id == updated.Id));
+        settingsPanel?.ReloadSkins();
+    }
+    internal void RenameCurrentSkin(string name)
+    {
+        if (!SkinNamesPolicy.IsValid(name)) throw new InvalidDataException("이름은 공백이 아닌 1~12자로 입력해 주세요.");
+        var names = new Dictionary<string, string>(Preferences.SkinNames) { [CurrentSkin.Id] = name.Trim() };
+        var updated = Preferences with { SkinNames = names };
+        if (!store.Save(updated)) throw new IOException("이름을 저장하지 못했어요. 저장 폴더를 확인해 주세요.");
+        Preferences = updated;
+        Skins = SkinNamesPolicy.Visible(allSkins, Preferences);
+        ChangeSkin(Skins.Single(s => s.Id == CurrentSkin.Id));
+        settingsPanel?.ReloadSkins();
+    }
+    internal void DeleteCurrentSkin()
+    {
+        if (Skins.Count <= 1) throw new InvalidDataException("마지막 친구는 남겨 주세요. 다른 PNG를 추가하거나 기본 캐릭터를 복원한 뒤 삭제할 수 있어요.");
+        var removed = CurrentSkin;
+        var next = Skins.First(s => s.Id != removed.Id);
+        var names = new Dictionary<string, string>(Preferences.SkinNames);
+        if (removed.IsCustom) names.Remove(removed.Id);
+        var before = Preferences;
+        var updated = Preferences with { SkinId = next.Id, SkinNames = names,
+            HiddenSkinIds = removed.IsCustom ? Preferences.HiddenSkinIds : Preferences.HiddenSkinIds.Append(removed.Id).Distinct().ToArray() };
+        if (!store.Save(updated)) throw new IOException("변경을 저장하지 못했어요. 저장 폴더를 확인해 주세요.");
+        try { if (removed.IsCustom) userSkins.Delete(removed); }
+        catch { store.Save(before); throw; }
+        if (removed.IsCustom) allSkins = allSkins.Where(s => s.Id != removed.Id).ToArray();
+        Preferences = updated;
+        Skins = SkinNamesPolicy.Visible(allSkins, Preferences);
+        ChangeSkin(Skins.Single(s => s.Id == next.Id));
+        settingsPanel?.ReloadSkins();
+    }
+    internal void RestoreBundledSkins()
+    {
+        var updated = Preferences with { HiddenSkinIds = Array.Empty<string>() };
+        if (!store.Save(updated)) throw new IOException("변경을 저장하지 못했어요.");
+        Preferences = updated;
+        Skins = SkinNamesPolicy.Visible(allSkins, Preferences);
         settingsPanel?.ReloadSkins();
     }
     internal void ExportPreview(string path)
@@ -448,6 +492,7 @@ public partial class App : Application
         trayIcon?.Dispose();
         if (ownsMutex) instance?.ReleaseMutex();
         instance?.Dispose();
+        installerMutex?.Dispose();
         base.OnExit(e);
     }
 }

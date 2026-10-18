@@ -7,6 +7,8 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Length == 1 && args[0] is "--install-integrations" or "--uninstall-integrations")
+            return WindowsIntegration.InstallIntegrations(args[0] == "--uninstall-integrations");
         // No WPF window, tray, settings load or GPU work in the short-lived hook process.
         if (args.Length == 2 && args[0] is ClaudeBridge.HookFlag or ClaudeBridge.StatusFlag)
             return ClaudeBridge.Send(args[1], args[0] == ClaudeBridge.StatusFlag);

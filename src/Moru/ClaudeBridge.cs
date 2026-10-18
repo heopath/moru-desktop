@@ -70,12 +70,15 @@ internal static class ClaudeBridge
             catch (Exception ex) when (ex is IOException or JsonException or OperationCanceledException) { }
         }
     }
-    public static string Configure(string path, string executable, string pipe, bool enable)
+    public static string Configure(string path, string executable, string pipe, bool enable, bool onlyThisExecutable = false)
     {
+        if (onlyThisExecutable && !File.Exists(path)) return "연결 설정 없음";
         if (enable && !HasGitBash()) throw new NotSupportedException("현재 Claude 연결에는 Git for Windows의 Git Bash가 필요해요. 설치 후 다시 연결해 주세요.");
         if (File.Exists(path) && new FileInfo(path).Length > 1024 * 1024) throw new IOException("설정 파일이 너무 커요.");
         string original = File.Exists(path) ? File.ReadAllText(path) : "{}";
         var root = JsonNode.Parse(original) as JsonObject ?? throw new JsonException();
+        string exe = executable.Replace('\\', '/');
+        bool changed = false;
         var hooks = root["hooks"] as JsonObject ?? new JsonObject();
         if (root["hooks"] is not null && root["hooks"] is not JsonObject) throw new JsonException();
         if (root["hooks"] is null) root["hooks"] = hooks;
@@ -85,15 +88,19 @@ internal static class ClaudeBridge
             for (int i = groups.Count - 1; i >= 0; i--)
             {
                 if (groups[i]?["hooks"] is not JsonArray commands) continue;
+                int originalCount = commands.Count;
                 for (int j = commands.Count - 1; j >= 0; j--)
-                    if (commands[j]?["command"]?.GetValue<string>().Contains(HookFlag, StringComparison.Ordinal) == true) commands.RemoveAt(j);
-                if (commands.Count == 0) groups.RemoveAt(i);
+                    if (commands[j]?["command"]?.GetValue<string>() is string command && command.Contains(HookFlag, StringComparison.Ordinal)
+                        && (!onlyThisExecutable || CommandUsesExecutable(command, executable)))
+                    { commands.RemoveAt(j); changed = true; }
+                if (commands.Count == 0 && (!onlyThisExecutable || originalCount > 0)) groups.RemoveAt(i);
             }
         }
-        string exe = executable.Replace('\\', '/');
         if (exe.IndexOfAny(new[] { '"', '\n', '\r', '$', '`' }) >= 0) throw new ArgumentException("실행 경로에 지원하지 않는 문자가 있어요.");
-        bool ownsStatus = root["statusLine"]?["command"]?.GetValue<string>().Contains(StatusFlag, StringComparison.Ordinal) == true;
+        bool ownsStatus = root["statusLine"]?["command"]?.GetValue<string>() is string statusCommand && statusCommand.Contains(StatusFlag, StringComparison.Ordinal)
+            && (!onlyThisExecutable || CommandUsesExecutable(statusCommand, executable));
         if (ownsStatus) root.Remove("statusLine");
+        if (onlyThisExecutable && !changed && !ownsStatus) return "이 설치본의 연결 설정 없음";
         bool statusInstalled = false;
         if (enable)
         {
@@ -124,6 +131,8 @@ internal static class ClaudeBridge
             : statusInstalled ? "연결 설정 완료 · 새 Claude Code 세션부터 적용돼요."
             : "작업 훅 연결 완료 · 기존 상태줄을 유지해서 사용량 연결은 생략했어요.";
     }
+    internal static bool CommandUsesExecutable(string command, string executable) =>
+        command.Replace('\\', '/').StartsWith("\"" + executable.Replace('\\', '/') + "\" ", StringComparison.OrdinalIgnoreCase);
     internal static bool HasGitBash()
     {
         string? configured = Environment.GetEnvironmentVariable("CLAUDE_CODE_GIT_BASH_PATH");

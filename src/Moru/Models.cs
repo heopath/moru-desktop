@@ -18,6 +18,8 @@ internal sealed record Preferences
     public bool AlarmSound { get; init; } = true;
     public bool RepeatTimer { get; init; }
     public bool DesktopShortcutCreated { get; init; }
+    public Dictionary<string, string> SkinNames { get; init; } = new();
+    public string[] HiddenSkinIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<Reminder> Reminders { get; init; } = Array.Empty<Reminder>();
     public int? X { get; init; }
     public int? Y { get; init; }
@@ -27,6 +29,10 @@ internal sealed record Preferences
         SkinId = string.IsNullOrWhiteSpace(SkinId) ? "sprout" : SkinId,
         RefreshSeconds = RefreshSeconds is 2 or 5 or 10 ? RefreshSeconds : 2,
         TextSize = TextSize is 16 or 18 or 20 ? TextSize : 16,
+        SkinNames = (SkinNames ?? new()).Where(p => p.Key.Length is > 0 and <= 40 && SkinNamesPolicy.IsValid(p.Value))
+            .Take(12).ToDictionary(p => p.Key, p => p.Value.Trim()),
+        HiddenSkinIds = (HiddenSkinIds ?? Array.Empty<string>()).Where(id => !string.IsNullOrWhiteSpace(id) && id.Length <= 40)
+            .Distinct().Take(12).ToArray(),
         Reminders = (Reminders ?? Array.Empty<Reminder>()).Where(r => r is not null && r.Id != Guid.Empty && r.DueAt.Year is >= 2020 and <= 2100)
             .DistinctBy(r => r.Id).Take(8).Select(r => r with {
                 Title = string.IsNullOrWhiteSpace(r.Title) ? "잠깐 쉬어 가요" : r.Title.Trim()[..Math.Min(40, r.Title.Trim().Length)],

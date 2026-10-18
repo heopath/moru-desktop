@@ -4,6 +4,7 @@
 참고한 VPet·Rainmeter 프로젝트의 코드나 캐릭터 에셋은 포함하지 않았습니다.
 
 Windows 포터블 배포본에는 Microsoft .NET / Windows Desktop Runtime이 포함됩니다.
+Windows 설치 파일에도 동일한 런타임이 포함됩니다. 설치·제거 프로그램은 [Inno Setup](https://jrsoftware.org/isinfo.php)으로 만들었으며 해당 부분에는 [Inno Setup 라이선스](licenses/innosetup/LICENSE.txt)가 적용됩니다.
 해당 구성요소는 각각의 라이선스를 따릅니다. 원문 고지는 `licenses/dotnet/`에 포함했습니다.
 
 - [.NET Runtime](https://github.com/dotnet/runtime)

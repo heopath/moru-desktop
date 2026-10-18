@@ -53,7 +53,12 @@ public partial class SettingsWindow : Window
         AlarmList.ItemsSource = host.Preferences.Reminders.OrderBy(r => r.DueAt).ToArray();
         AlarmNotice.Text = host.Preferences.Reminders.Count == 0 ? "등록된 알람이 없어요. 최대 8개까지 추가할 수 있어요." : $"예약된 알람 {host.Preferences.Reminders.Count}개";
     }
-    internal void ReloadSkins() { SkinList.ItemsSource = host.Skins; Dispatcher.BeginInvoke(SelectCurrentSkin); }
+    internal void ReloadSkins()
+    {
+        SkinList.ItemsSource = host.Skins;
+        // Wait for the new item templates before restoring the selected card.
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(SelectCurrentSkin));
+    }
     private void SelectCurrentSkin()
     {
         selecting = true;
@@ -117,12 +122,43 @@ public partial class SettingsWindow : Window
     private void RefreshStateEditor()
     {
         var skin = host.CurrentSkin;
+        SkinNameInput.Text = skin.Name;
+        SkinManagementNotice.Text = skin.IsCustom ? "이름 1~12자 · 삭제해도 원본 PNG는 남아요." : "기본 캐릭터는 목록에서 제거해도 다시 복원할 수 있어요.";
+        DeleteSkinButton.Content = skin.IsCustom ? "캐릭터 삭제" : "목록에서 제거";
+        DeleteSkinButton.IsEnabled = host.Skins.Count > 1;
+        RestoreSkinsButton.IsEnabled = host.Preferences.HiddenSkinIds.Length > 0;
         StatePreview.Skin = skin; StatePreview.SetActivity(SelectedState);
         bool assigned = skin.StateImages.ContainsKey(SelectedState.ToString());
         StateImageNotice.Text = assigned ? "전용 이미지 적용됨" : "기본 이미지 사용 중";
         StateImageButton.IsEnabled = skin.IsCustom;
         StateResetButton.IsEnabled = skin.IsCustom && skin.Definition.StateImages?.ContainsKey(SelectedState.ToString()) == true;
         StateHelp.Text = skin.IsCustom ? "비워 둔 상태는 처음 추가한 PNG를 사용해요." : "‘PNG 친구 추가’로 내 이미지를 넣은 뒤 바꿀 수 있어요.";
+    }
+    private void OnSkinNameKey(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { e.Handled = true; OnRenameSkin(sender, e); }
+    }
+    private void OnRenameSkin(object sender, RoutedEventArgs e)
+    {
+        try { host.RenameCurrentSkin(SkinNameInput.Text); SaveNotice.Text = "캐릭터 이름을 바꿨어요."; }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        { SkinManagementNotice.Text = ex.Message; }
+    }
+    private void OnDeleteSkin(object sender, RoutedEventArgs e)
+    {
+        var skin = host.CurrentSkin;
+        string message = skin.IsCustom
+            ? $"‘{skin.Name}’ 캐릭터와 상태별 이미지를 모루에서 삭제할까요?\n원본 PNG 파일은 삭제하지 않아요."
+            : $"‘{skin.Name}’ 캐릭터를 목록에서 제거할까요?\n‘기본 캐릭터 복원’으로 다시 가져올 수 있어요.";
+        if (MessageBox.Show(this, message, "캐릭터 삭제", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        try { host.DeleteCurrentSkin(); SaveNotice.Text = "캐릭터를 목록에서 제거했어요."; }
+        catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+        { SkinManagementNotice.Text = ex.Message; }
+    }
+    private void OnRestoreSkins(object sender, RoutedEventArgs e)
+    {
+        try { host.RestoreBundledSkins(); SaveNotice.Text = "기본 캐릭터를 복원했어요."; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { SkinManagementNotice.Text = ex.Message; }
     }
     private void OnStateChoice(object sender, SelectionChangedEventArgs e) { if (ready) RefreshStateEditor(); }
     private void OnStatePreview(object sender, RoutedEventArgs e) => host.PreviewAnimation(SelectedState);

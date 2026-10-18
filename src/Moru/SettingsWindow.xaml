@@ -43,6 +43,15 @@
       </Border><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="SkinCard" Property="Background" Value="{DynamicResource Soft}"/><Setter TargetName="SkinCard" Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SkinCard" Property="BorderThickness" Value="2"/></Trigger></ControlTemplate.Triggers></ControlTemplate></RadioButton.Template>
      </RadioButton></DataTemplate></ItemsControl.ItemTemplate>
     </ItemsControl>
+    <Border Style="{StaticResource Card}" Margin="0,6,0,8"><StackPanel>
+     <TextBlock Text="선택한 캐릭터 관리" FontWeight="SemiBold"/>
+     <Grid Margin="0,12,0,10"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <TextBox x:Name="SkinNameInput" MaxLength="12" AutomationProperties.Name="캐릭터 이름" VerticalContentAlignment="Center" Margin="0,0,8,0" KeyDown="OnSkinNameKey"/>
+      <Button Grid.Column="1" Content="이름 변경" Click="OnRenameSkin"/>
+     </Grid>
+     <TextBlock x:Name="SkinManagementNotice" Style="{StaticResource Caption}" Margin="0,0,0,10"/>
+     <UniformGrid Columns="2"><Button x:Name="DeleteSkinButton" Content="캐릭터 삭제" Click="OnDeleteSkin" Margin="0,0,6,0"/><Button x:Name="RestoreSkinsButton" Content="기본 캐릭터 복원" Click="OnRestoreSkins"/></UniformGrid>
+    </StackPanel></Border>
     <Button Content="+ PNG 친구 추가" Click="OnImportSkin" Margin="0,8,0,0"/>
     <TextBlock Text="투명 배경 PNG · 권장 512×512 · 최대 2048px / 8MB" Style="{StaticResource Caption}" Margin="0,10,0,18"/>
     <Border Style="{StaticResource Card}" Margin="0,0,0,18"><StackPanel>

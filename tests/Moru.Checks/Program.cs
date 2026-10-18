@@ -24,9 +24,9 @@ internal static class Program
         var store = new SettingsStore(scratch);
         var desired = new Preferences { SkinId = "cat", RefreshSeconds = 5, AlwaysOnTop = false, X = -1200, Y = 400 };
         Check("Settings save succeeds", store.Save(desired));
-        Check("Settings round trip including negative monitor coordinates", store.Load() == desired);
+        Check("Settings round trip including negative monitor coordinates", System.Text.Json.JsonSerializer.Serialize(store.Load()) == System.Text.Json.JsonSerializer.Serialize(desired));
         File.WriteAllText(Path.Combine(scratch, "settings.json"), "{broken");
-        Check("Corrupt settings recover to defaults", store.Load() == new Preferences());
+        Check("Corrupt settings recover to defaults", System.Text.Json.JsonSerializer.Serialize(store.Load()) == System.Text.Json.JsonSerializer.Serialize(new Preferences()));
         File.WriteAllText(Path.Combine(scratch, "settings.json"), "{\"RefreshSeconds\":0,\"X\":999999}");
         Check("Invalid settings normalized", store.Load().RefreshSeconds == 2 && store.Load().X is null);
         string blocked = Path.Combine(scratch, "not-a-directory");
@@ -88,6 +88,7 @@ internal static class Program
         AiChecks.Run(scratch, Check);
         UtilityChecks.Run(scratch, Check);
         StateSkinChecks.Run(scratch, Check);
+        SkinManagementChecks.Run(scratch, Check);
         Console.WriteLine($"PASS: {passed} checks");
         return 0;
     }
